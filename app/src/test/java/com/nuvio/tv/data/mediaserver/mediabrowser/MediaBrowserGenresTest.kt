@@ -75,6 +75,20 @@ class MediaBrowserGenresTest {
     }
 
     @Test
+    fun requestsEmbyCommunityRatingExplicitlyWithoutAddingUnsupportedJellyfinFields() = runTest {
+        val http = TestHttp { request ->
+            val fields = request.url.queryParameter("fields").orEmpty().split(',')
+            if ("CommunityRating" in fields) """{"Items":[{"Id":"1","Name":"Film","Type":"Movie","CommunityRating":7.3}],"TotalRecordCount":1}"""
+            else """{"Items":[{"Id":"1","Name":"Film","Type":"Movie"}],"TotalRecordCount":1}"""
+        }
+        val library = ServerLibrary("movies", "Filmy", ServerMediaKind.MOVIE)
+        val result = EmbyProvider(http.client, testIdentity).libraryPage(session(), library, 0, 50, "g1")
+        assertEquals(7.3f, result.items.single().preview.imdbRating)
+        JellyfinProvider(http.client, testIdentity).libraryPage(session(), library, 0, 50, "g1")
+        assertTrue("CommunityRating" !in http.requests.last().url.queryParameter("fields").orEmpty().split(','))
+    }
+
+    @Test
     fun emptyExplicitGenreNeverFallsBackToAnotherGenre() = runTest {
         val http = TestHttp { """{"Items":[],"TotalRecordCount":0}""" }
         val provider = EmbyProvider(http.client, testIdentity)

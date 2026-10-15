@@ -164,7 +164,8 @@ data class ServerPlaybackRequest(
 )
 
 data class ServerPlayerCapabilities(
-    val allowDirectPlay: Boolean = true
+    val allowDirectPlay: Boolean = true,
+    val maxStreamingBitrate: Long = 40_000_000L
 )
 
 enum class ServerPlayMethod(val wireName: String) {

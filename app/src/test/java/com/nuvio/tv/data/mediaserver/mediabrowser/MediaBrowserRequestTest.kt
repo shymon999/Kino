@@ -234,8 +234,9 @@ class MediaBrowserRequestTest {
         jellyfin.preparePlayback(session, ServerPlaybackRequest(target, ServerPlayerCapabilities(allowDirectPlay = false)))
 
         val (direct, fallback) = http.requests
-        assertEquals("1000000000", direct.url.queryParameter("maxStreamingBitrate"))
-        assertTrue(direct.text.contains("\"MaxStreamingBitrate\":1000000000"))
+        assertEquals("40000000", direct.url.queryParameter("maxStreamingBitrate"))
+        assertTrue(direct.text.contains("\"MaxStreamingBitrate\":40000000"))
+        assertEquals("40000000", fallback.url.queryParameter("maxStreamingBitrate"))
         assertTrue(direct.text.contains("\"DirectPlayProfiles\":[{\"Type\":\"Video\"}]"))
         assertFalse(fallback.text.contains("\"DirectPlayProfiles\":[{\"Type\":\"Video\"}]"))
         assertTrue(fallback.text.contains("\"AudioCodec\":\"aac,mp3,ac3,eac3,flac,opus,vorbis\""))

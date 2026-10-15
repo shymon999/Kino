@@ -14,6 +14,7 @@ internal class EmbyProvider(
     override val id: String = "emby"
     override val displayName: String = "Emby"
     override val minimumVersion: String = "4.7"
+    override val listFields: String = "${super.listFields},CommunityRating"
 
     override fun isSupported(info: PublicInfo): Boolean =
         info.productName?.contains("Jellyfin", ignoreCase = true) != true && isSupportedVersion(info.version)

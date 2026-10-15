@@ -50,6 +50,8 @@ internal abstract class MediaBrowserProvider(
     private val aioStreamsServers = ConcurrentHashMap<String, Boolean>()
     private val libraryGenres = ConcurrentHashMap<String, String>()
 
+    protected open val listFields: String = LIST_FIELDS
+
     protected abstract fun viewsEndpoint(userId: String): Endpoint
 
     protected abstract fun itemsEndpoint(userId: String): Endpoint
@@ -208,7 +210,7 @@ internal abstract class MediaBrowserProvider(
             ItemsResult.serializer(),
             mapOf(
                 "parentId" to collectionId,
-                "fields" to LIST_FIELDS,
+                "fields" to listFields,
                 "imageTypeLimit" to "1",
                 "enableImageTypes" to "Primary,Backdrop,Logo",
                 "startIndex" to start.toString(),
@@ -240,7 +242,7 @@ internal abstract class MediaBrowserProvider(
                             "includeItemTypes" to kind.itemType(),
                             "searchTerm" to query,
                             "limit" to limit.toString(),
-                            "fields" to LIST_FIELDS,
+                            "fields" to listFields,
                             "imageTypeLimit" to "1",
                             "enableImageTypes" to "Primary,Backdrop,Logo"
                         )
@@ -272,7 +274,7 @@ internal abstract class MediaBrowserProvider(
             mapOf(
                 "limit" to limit.toString(),
                 "mediaTypes" to "Video",
-                "fields" to LIST_FIELDS,
+                "fields" to listFields,
                 "imageTypeLimit" to "1",
                 "enableImageTypes" to "Primary,Backdrop,Logo,Thumb"
             )
@@ -389,7 +391,7 @@ internal abstract class MediaBrowserProvider(
             mediaSourceId = request.target.mediaSourceId,
             audioStreamIndex = request.audioStreamIndex,
             subtitleStreamIndex = request.subtitleStreamIndex,
-            maxStreamingBitrate = MAX_STREAMING_BITRATE,
+            maxStreamingBitrate = request.capabilities.maxStreamingBitrate,
             enableDirectPlay = request.capabilities.allowDirectPlay,
             deviceProfile = deviceProfile(request.capabilities)
         )
@@ -564,7 +566,7 @@ internal abstract class MediaBrowserProvider(
         "parentId" to library.id,
         "recursive" to (library.kind != ServerMediaKind.COLLECTION).toString(),
         "includeItemTypes" to library.kind.itemType().takeUnless { library.kind == ServerMediaKind.COLLECTION },
-        "fields" to LIST_FIELDS,
+        "fields" to listFields,
         "imageTypeLimit" to "1",
         "enableImageTypes" to "Primary,Backdrop,Logo"
     )
@@ -591,7 +593,7 @@ internal abstract class MediaBrowserProvider(
 
     private fun deviceProfile(capabilities: ServerPlayerCapabilities) = DeviceProfile(
         name = "Nuvio",
-        maxStreamingBitrate = MAX_STREAMING_BITRATE,
+        maxStreamingBitrate = capabilities.maxStreamingBitrate,
         directPlayProfiles = if (capabilities.allowDirectPlay) {
             listOf(DirectPlayProfile())
         } else {
@@ -629,7 +631,6 @@ internal abstract class MediaBrowserProvider(
 
     private companion object {
         const val API_KEY = "api_key"
-        const val MAX_STREAMING_BITRATE = 1_000_000_000L
         const val LIST_FIELDS = "Overview,Genres,ProviderIds,PremiereDate"
         const val DETAIL_FIELDS = "Overview,Genres,ProviderIds,People,Studios,PremiereDate,EndDate"
         val TEXT_SUBTITLES = listOf("srt", "subrip", "ass", "ssa", "vtt", "webvtt")

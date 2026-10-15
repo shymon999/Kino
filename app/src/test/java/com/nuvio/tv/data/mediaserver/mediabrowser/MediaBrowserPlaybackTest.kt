@@ -13,6 +13,9 @@ import com.nuvio.tv.data.mediaserver.ServerPlayerCapabilities
 import com.nuvio.tv.data.mediaserver.ServerSession
 import com.nuvio.tv.data.mediaserver.readableTranscodeReason
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertThrows
@@ -44,6 +47,21 @@ class MediaBrowserPlaybackTest {
         PlaybackInfoResult.serializer(),
         """{"PlaySessionId": "ps1", "MediaSources": [$source]}"""
     )
+
+    @Test
+    fun sendsFortyMbpsDefaultInQueryBodyAndDeviceProfile() = runBlocking {
+        val http = TestHttp {
+            """{"MediaSources":[{"Id":"ms1","TranscodingUrl":"/videos/item1/master.m3u8"}]}"""
+        }
+        val playback = EmbyProvider(http.client, testIdentity).preparePlayback(embySession, request)
+        val sent = http.requests.single()
+        val body = json.parseToJsonElement(sent.text).jsonObject
+        assertEquals("40000000", sent.url.queryParameter("maxStreamingBitrate"))
+        assertEquals("40000000", body.getValue("MaxStreamingBitrate").jsonPrimitive.content)
+        assertEquals("40000000", body.getValue("DeviceProfile").jsonObject
+            .getValue("MaxStreamingBitrate").jsonPrimitive.content)
+        assertEquals(ServerPlayMethod.TRANSCODE, playback.playMethod)
+    }
 
     @Test
     fun directPlayUsesStaticStreamOnOwningServer() {
