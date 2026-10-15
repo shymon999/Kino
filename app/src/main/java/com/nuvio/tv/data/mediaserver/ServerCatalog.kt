@@ -15,6 +15,7 @@ import com.nuvio.tv.domain.repository.AddonRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.net.URLEncoder
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -55,6 +56,7 @@ class ServerCatalog @Inject constructor(
             addon.copy(
                 catalogs = addon.catalogs.filter {
                     it.id != RESUME_ID &&
+                        !it.id.startsWith(GENRE_PREFIX) &&
                         it.apiType != ServerMediaKind.COLLECTION.contentType &&
                         it.apiType != ServerMediaKind.MIXED.contentType
                 }
@@ -86,6 +88,13 @@ class ServerCatalog @Inject constructor(
         val connectionId = connectionId(addonBaseUrl) ?: throw ServerException(ServerFailure.NOT_FOUND)
         val connection = repository.connection(connectionId) ?: throw ServerException(ServerFailure.NOT_FOUND)
         val query = extraArgs["search"]?.trim()?.takeIf { it.isNotEmpty() }
+        val genreRow = if (catalogId.startsWith(GENRE_PREFIX)) {
+            connection.selectedLibraries.firstNotNullOfOrNull { library ->
+                library.genres.firstOrNull { genreCatalogId(library.id, it.id) == catalogId }
+                    ?.let { library to it }
+            } ?: throw ServerException(ServerFailure.NOT_FOUND)
+        } else null
+        val requestedGenre = genreRow?.second?.name ?: extraArgs["genre"]?.takeIf { it.isNotBlank() }
         val page = when {
             catalogId == RESUME_ID -> resumePage(connection, skip)
             catalogId.startsWith(COLLECTION_PREFIX) -> pageOf(connection, skip) {
@@ -95,11 +104,15 @@ class ServerCatalog @Inject constructor(
             }
             catalogId.startsWith(SEARCH_PREFIX) -> searchPage(connection, catalogId.removePrefix(SEARCH_PREFIX), query, skip)
             else -> {
-                val library = connection.libraries.firstOrNull { it.id == catalogId }
+                val library = genreRow?.first ?: connection.selectedLibraries.firstOrNull { it.id == catalogId }
                     ?: throw ServerException(ServerFailure.NOT_FOUND)
+                val genre = genreRow?.second ?: requestedGenre?.let { name ->
+                    library.genres.firstOrNull { it.name == name }
+                        ?: throw ServerException(ServerFailure.NOT_FOUND)
+                }
                 pageOf(connection, skip) {
                     repository.call(connection.id) { provider, session ->
-                        provider.libraryPage(session, library, skip, PAGE_SIZE)
+                        provider.libraryPage(session, library, skip, PAGE_SIZE, genre?.id)
                     }
                 }
             }
@@ -119,7 +132,7 @@ class ServerCatalog @Inject constructor(
             supportsSkip = true,
             skipStep = PAGE_SIZE,
             nextSkip = page.nextSkip ?: skip,
-            extraArgs = extraArgs
+            extraArgs = if (requestedGenre == null) extraArgs else extraArgs + ("genre" to requestedGenre)
         )
     }
 
@@ -173,16 +186,29 @@ class ServerCatalog @Inject constructor(
             showInHome = true,
             hasExplicitShowInHome = true
         ).takeIf { provider.supports(ServerCapability.USER_STATE_READ) }
-        val catalogs = libraries.map { library ->
-            CatalogDescriptor(
+        val catalogs = libraries.flatMap { library ->
+            val catalog = CatalogDescriptor(
                 type = library.kind.domainType(),
                 rawType = library.kind.contentType,
                 id = library.id,
                 name = "${connection.name} · ${library.name}",
-                extra = listOf(CatalogExtra(name = "skip")),
+                extra = listOf(CatalogExtra(name = "skip")) +
+                    listOfNotNull(library.genres.takeIf { it.isNotEmpty() }?.let { genres ->
+                        CatalogExtra(name = "genre", options = genres.map { it.name })
+                    }),
                 showInHome = true,
                 hasExplicitShowInHome = true
             )
+            val genreRows = if (library.kind == ServerMediaKind.MOVIE || library.kind == ServerMediaKind.SERIES) {
+                library.genres.map { genre ->
+                    catalog.copy(
+                        id = genreCatalogId(library.id, genre.id),
+                        name = "${library.name} · ${genre.name}",
+                        extra = listOf(CatalogExtra(name = "skip"))
+                    )
+                }
+            } else emptyList()
+            listOf(catalog) + genreRows
         }
         val searches = SEARCH_KINDS
             .filter { kind -> provider.supports(ServerCapability.SEARCH) && libraries.any { it.holds(kind) } }
@@ -258,10 +284,14 @@ class ServerCatalog @Inject constructor(
         private const val DETAILS_BUFFER = 16
         private const val RESUME_ID = "resume"
         private const val COLLECTION_PREFIX = "collection:"
+        private const val GENRE_PREFIX = "genre:"
         private const val SEARCH_PREFIX = "search."
         private val SEARCH_KINDS = listOf(ServerMediaKind.MOVIE, ServerMediaKind.SERIES)
         private const val BASE_URL_PREFIX = "nuvio-server://"
         private const val ADDON_ID_PREFIX = "server."
+
+        internal fun genreCatalogId(libraryId: String, genreId: String): String =
+            GENRE_PREFIX + URLEncoder.encode(libraryId, "UTF-8") + ":" + URLEncoder.encode(genreId, "UTF-8")
 
         fun isServerAddon(baseUrl: String?): Boolean = baseUrl?.startsWith(BASE_URL_PREFIX) == true
 

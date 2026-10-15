@@ -21,6 +21,48 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerCatalogTest {
+    @Test
+    fun exposesGenreFiltersAndSeparateHomeRowsWithoutDuplicatingDiscovery() = runTest {
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
+        val series = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
+        val (catalog, _, connection) = catalog(libraries = listOf(movies, series))
+        val descriptors = catalog.addons.first().single().catalogs
+        assertEquals(listOf("Komedia"), descriptors.single { it.id == movies.id }.extra.single { it.name == "genre" }.options)
+        val movieRow = descriptors.single { it.id == ServerCatalog.genreCatalogId(movies.id, "g1") }
+        val seriesRow = descriptors.single { it.id == ServerCatalog.genreCatalogId(series.id, "g1") }
+        assertEquals("Movies · Komedia", movieRow.name)
+        assertEquals("movie", movieRow.apiType)
+        assertEquals("series", seriesRow.apiType)
+        assertTrue(movieRow.showInHome)
+        assertFalse(catalog.searchAddons.first().single().catalogs.any { it.id.startsWith("genre:") })
+        assertEquals(connection.id, ServerCatalog.connectionId(catalog.addons.first().single().baseUrl))
+    }
+
+    @Test
+    fun filtersAndPaginatesGeneratedGenreRowsUsingTheLibraryGenreId() = runTest {
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g:1", "Science Fiction")))
+        val provider = FakeServerProvider()
+        val (catalog, _, connection) = catalog(provider, libraries = listOf(movies))
+        val row = catalog.row(connection.id, ServerCatalog.genreCatalogId(movies.id, "g:1"))
+        val next = catalog.page(row, row.nextSkip)
+        assertEquals(listOf(movies.id to "g:1", movies.id to "g:1"), provider.genreRequests)
+        assertEquals(mapOf("genre" to "Science Fiction"), next.extraArgs)
+        assertEquals("50", ServerItemRef.parse(next.items.first().id)?.itemId)
+        catalog.page(connection, movies.id, 0, mapOf("genre" to "Science Fiction"))
+        assertEquals(movies.id to "g:1", provider.genreRequests.last())
+    }
+
+    @Test
+    fun missingGenresAndDeselectedLibrariesDoNotReturnUnfilteredTitles() = runTest {
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
+        val (catalog, repository, connection) = catalog(libraries = listOf(movies))
+        val missing = runCatching { catalog.page(connection, movies.id, 0, mapOf("genre" to "Missing")) }.exceptionOrNull()
+        assertEquals(ServerFailure.NOT_FOUND, missing?.serverFailure())
+        repository.setLibrarySelected(connection.id, movies.id, false)
+        val hidden = runCatching { catalog.page(connection, ServerCatalog.genreCatalogId(movies.id, "g1"), 0) }.exceptionOrNull()
+        assertEquals(ServerFailure.NOT_FOUND, hidden?.serverFailure())
+    }
+
     private val installedAddons = MutableStateFlow<List<Addon>>(emptyList())
     private val context = mockk<Context> {
         every { getString(any()) } returns "Continue watching"
