@@ -37,12 +37,22 @@ class MediaBrowserMapperTest {
     )
 
     @Test
+    fun normalizesDuplicateGenresAndRejectsInvalidRatingsAndEmptyCards() {
+        val preview = mapper.preview(movie.copy(genres = listOf(" Family ", "Familijny", "", "Sci-Fi", "Science Fiction"), communityRating = 100.0))!!
+        assertEquals(listOf("Family", "Sci-Fi"), preview.genres)
+        assertNull(preview.imdbRating)
+        assertNull(mapper.preview(movie.copy(id = "")))
+        assertNull(mapper.preview(movie.copy(name = " ")))
+    }
+
+    @Test
     fun mapsPreviewWithNativeIdentityAndUnauthenticatedArtwork() {
         val preview = mapper.preview(movie)!!
         assertEquals(ServerItemRef("cabc", "f1c9a0"), ServerItemRef.parse(preview.id))
         assertEquals(ContentType.MOVIE, preview.type)
         assertEquals("Director's Cut", preview.name)
         assertEquals("2007", preview.releaseInfo)
+        assertEquals("tt0111161", preview.imdbId)
         assertEquals(7.8f, preview.imdbRating)
         assertTrue(preview.poster!!.startsWith("https://media.example.com/jellyfin/Items/f1c9a0/Images/Primary?tag=p1"))
         assertFalse(preview.poster!!.contains("api_key"))

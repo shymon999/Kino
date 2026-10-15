@@ -2,6 +2,7 @@ package com.nuvio.tv.data.mediaserver.mediabrowser
 
 import com.nuvio.tv.core.tracking.TrackingExternalIds
 import com.nuvio.tv.core.tracking.parseTrackingExternalIds
+import com.nuvio.tv.data.mediaserver.canonicalServerGenre
 import com.nuvio.tv.data.mediaserver.ServerCandidate
 import com.nuvio.tv.data.mediaserver.ServerItemRef
 import com.nuvio.tv.data.mediaserver.ServerMediaKind
@@ -25,6 +26,7 @@ internal class MediaBrowserMapper(
     fun ref(itemId: String): String = ServerItemRef(connectionId, itemId).encode()
 
     fun preview(item: BaseItem): MetaPreview? {
+        if (item.id.isBlank() || item.name.isNullOrBlank()) return null
         val kind = item.mediaKind() ?: return null
         return MetaPreview(
             id = ref(item.id),
@@ -38,7 +40,9 @@ internal class MediaBrowserMapper(
             description = item.overview,
             releaseInfo = item.productionYear?.toString(),
             imdbRating = item.communityRating?.formatRating(),
-            genres = item.genres,
+            imdbId = item.externalIds().imdb,
+            genres = item.genres.map(String::trim).filter(String::isNotEmpty)
+                .distinctBy(::canonicalServerGenre),
             released = item.premiereDate?.take(10)
         )
     }
@@ -85,7 +89,8 @@ internal class MediaBrowserMapper(
             releaseInfo = item.releaseInfo(kind),
             status = item.status,
             imdbRating = item.communityRating?.formatRating(),
-            genres = item.genres,
+            genres = item.genres.map(String::trim).filter(String::isNotEmpty)
+                .distinctBy(::canonicalServerGenre),
             runtime = item.runTimeTicks?.let { "${ticksToMinutes(it)} min" },
             director = item.people.filter { it.type.equals("Director", ignoreCase = true) }.mapNotNull { it.name },
             writer = item.people.filter { it.type.equals("Writer", ignoreCase = true) }.mapNotNull { it.name },
@@ -227,7 +232,8 @@ internal const val TICKS_PER_MS = 10_000L
 
 private fun ticksToMinutes(ticks: Long): Int = (ticks / TICKS_PER_MS / 60_000L).toInt()
 
-private fun Double.formatRating(): Float = ((this * 10).roundToInt() / 10.0).toFloat()
+private fun Double.formatRating(): Float? =
+    takeIf { it.isFinite() && it > 0.0 && it <= 10.0 }?.let { ((it * 10).roundToInt() / 10.0).toFloat() }
 
 private fun resolutionLabel(stream: MediaStream): String? {
     val width = stream.width ?: 0

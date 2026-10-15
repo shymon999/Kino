@@ -39,6 +39,7 @@ internal class MediaBrowserClient(
 
     val json = Json {
         ignoreUnknownKeys = true
+        coerceInputValues = true
         explicitNulls = false
         encodeDefaults = true
     }

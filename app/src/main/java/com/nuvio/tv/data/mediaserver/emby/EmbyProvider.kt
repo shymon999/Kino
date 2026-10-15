@@ -18,6 +18,17 @@ internal class EmbyProvider(
     override fun isSupported(info: PublicInfo): Boolean =
         info.productName?.contains("Jellyfin", ignoreCase = true) != true && isSupportedVersion(info.version)
 
+    // A single seed per process keeps pagination stable; a cold launch gets a fresh order.
+    override fun librarySortQuery(library: com.nuvio.tv.data.mediaserver.ServerLibrary): Map<String, String> =
+        if (library.kind == com.nuvio.tv.data.mediaserver.ServerMediaKind.MOVIE ||
+            library.kind == com.nuvio.tv.data.mediaserver.ServerMediaKind.SERIES) {
+            mapOf("sortBy" to "Random", "sortOrder" to "Ascending", "randomSeed" to browsingSeed)
+        } else super.librarySortQuery(library)
+
+    private companion object {
+        val browsingSeed = kotlin.random.Random.nextInt(1, Int.MAX_VALUE).toString()
+    }
+
     override fun viewsEndpoint(userId: String) = Endpoint("/Users/${pathSegment(userId)}/Views")
 
     override fun itemsEndpoint(userId: String) = Endpoint("/Users/${pathSegment(userId)}/Items")

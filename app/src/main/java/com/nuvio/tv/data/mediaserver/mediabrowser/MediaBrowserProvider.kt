@@ -165,6 +165,11 @@ internal abstract class MediaBrowserProvider(
         return ServerPage(result.items.mapNotNull(mapper::title), result.totalRecordCount)
     }
 
+    protected open fun librarySortQuery(library: ServerLibrary): Map<String, String> = mapOf(
+        "sortBy" to if (library.kind == ServerMediaKind.COLLECTION) "SortName" else "DateCreated,SortName",
+        "sortOrder" to if (library.kind == ServerMediaKind.COLLECTION) "Ascending" else "Descending"
+    )
+
     private suspend fun libraryItems(
         session: ServerSession,
         library: ServerLibrary,
@@ -175,10 +180,8 @@ internal abstract class MediaBrowserProvider(
         session,
         itemsEndpoint(session.userId),
         ItemsResult.serializer(),
-        itemQuery(library) + mapOf(
+        itemQuery(library) + librarySortQuery(library) + mapOf(
             "genreIds" to genreId?.takeIf { it.isNotEmpty() },
-            "sortBy" to if (library.kind == ServerMediaKind.COLLECTION) "SortName" else "DateCreated,SortName",
-            "sortOrder" to if (library.kind == ServerMediaKind.COLLECTION) "Ascending" else "Descending",
             "startIndex" to start.toString(),
             "limit" to limit.toString(),
             "enableTotalRecordCount" to "true"

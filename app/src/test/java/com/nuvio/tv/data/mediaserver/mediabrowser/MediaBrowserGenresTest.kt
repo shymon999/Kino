@@ -49,6 +49,32 @@ class MediaBrowserGenresTest {
     }
 
     @Test
+    fun embyRandomOrderUsesTheSameSeedAcrossPagesAndCombinedGenres() = runTest {
+        val http = TestHttp { """{"Items":[],"TotalRecordCount":0}""" }
+        val provider = EmbyProvider(http.client, testIdentity)
+        val library = ServerLibrary("movies", "Filmy", ServerMediaKind.MOVIE)
+        provider.libraryPage(session(), library, 0, 50, "g1,g2")
+        provider.libraryPage(session(), library, 50, 50, "g1,g2")
+        assertEquals(listOf("0", "50"), http.requests.map { it.url.queryParameter("startIndex") })
+        val seeds = http.requests.map { it.url.queryParameter("randomSeed") }
+        assertTrue(!seeds.first().isNullOrBlank())
+        assertEquals(seeds.first(), seeds.last())
+        http.requests.forEach {
+            assertEquals("Random", it.url.queryParameter("sortBy"))
+            assertEquals("g1,g2", it.url.queryParameter("genreIds"))
+        }
+    }
+
+    @Test
+    fun toleratesExplicitNullCollectionsFromServerJson() = runTest {
+        val http = TestHttp { """{"Items":[{"Id":"1","Name":"Film","Type":"Movie","Genres":null,"ProviderIds":null,"ImageTags":null,"People":null}],"TotalRecordCount":1}""" }
+        val provider = EmbyProvider(http.client, testIdentity)
+        val page = provider.libraryPage(session(), ServerLibrary("movies", "Filmy", ServerMediaKind.MOVIE), 0, 50, "g1")
+        assertEquals(1, page.items.size)
+        assertTrue(page.items.single().preview.genres.isEmpty())
+    }
+
+    @Test
     fun emptyExplicitGenreNeverFallsBackToAnotherGenre() = runTest {
         val http = TestHttp { """{"Items":[],"TotalRecordCount":0}""" }
         val provider = EmbyProvider(http.client, testIdentity)
