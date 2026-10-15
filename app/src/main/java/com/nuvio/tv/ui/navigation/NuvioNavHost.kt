@@ -162,6 +162,26 @@ private fun PlaybackNavHost(
             )
         }
 
+        listOf(Screen.Movies.route to "movie", Screen.Series.route to "series").forEach { (route, contentType) ->
+            composable(route) { entry ->
+                val homeEntry = androidx.compose.runtime.remember(entry) {
+                    runCatching { navController.getBackStackEntry(Screen.Home.route) }.getOrNull() ?: entry
+                }
+                val homeViewModel: com.nuvio.tv.ui.screens.home.HomeViewModel =
+                    androidx.hilt.navigation.compose.hiltViewModel(homeEntry)
+                com.nuvio.tv.ui.screens.home.ServerCategoryScreen(
+                    contentType = contentType,
+                    homeViewModel = homeViewModel,
+                    onNavigateToDetail = { id, type, addon ->
+                        navController.navigate(Screen.Detail.createRoute(id, type, addon))
+                    },
+                    onNavigateToCatalogSeeAll = { catalogId, addonId, type ->
+                        navController.navigate(Screen.CatalogSeeAll.createRoute(catalogId, addonId, type))
+                    }
+                )
+            }
+        }
+
         composable(Screen.Home.route) {
             fun createContinueWatchingRoute(
                 item: ContinueWatchingItem,

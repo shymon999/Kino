@@ -1,0 +1,3 @@
+<resources>
+    <string name="emby_category_empty">No catalogs to show. Connect a media server and enable a library in Settings.</string>
+</resources>

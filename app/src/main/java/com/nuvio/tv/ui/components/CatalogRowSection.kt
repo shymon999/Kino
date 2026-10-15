@@ -269,10 +269,11 @@ fun CatalogRowSection(
         val raw = catalogRow.rawType.takeIf { it.isNotBlank() } ?: catalogRow.apiType
         localizedContentType(catalogContext, raw)
     }
-    val catalogTitle = remember(catalogRow.catalogName, typeLabel, showCatalogTypeSuffix) {
+    val catalogTitle = remember(catalogRow.catalogName, catalogRow.addonBaseUrl, typeLabel, showCatalogTypeSuffix) {
         val formattedName = catalogRow.catalogName.replaceFirstChar { it.uppercase() }
         if (formattedName.isBlank()) ""
-        else if (showCatalogTypeSuffix && typeLabel.isNotEmpty()) "$formattedName - $typeLabel" else formattedName
+        else if (showCatalogTypeSuffix && typeLabel.isNotEmpty() &&
+            !com.nuvio.tv.data.mediaserver.ServerCatalog.isServerAddon(catalogRow.addonBaseUrl)) "$formattedName - $typeLabel" else formattedName
     }
 
     Column(modifier = modifier.fillMaxWidth().then(
