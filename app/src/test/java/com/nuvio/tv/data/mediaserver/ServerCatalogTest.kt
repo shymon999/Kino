@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.mediaserver
 
 import android.content.Context
+import com.nuvio.tv.R
 import com.nuvio.tv.core.tracking.TrackingExternalIds
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.AddonResource
@@ -53,6 +54,39 @@ class ServerCatalogTest {
     }
 
     @Test
+    fun aliasesShareOneRowAndQueryAllGenreIdsWithoutChangingPagination() = runTest {
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(
+            ServerGenre("s1", "Sci-Fi"), ServerGenre("s2", "Science Fiction"),
+            ServerGenre("f1", "Family"), ServerGenre("f2", "Familijny")
+        ))
+        val provider = FakeServerProvider()
+        val (catalog, _, connection) = catalog(provider, libraries = listOf(movies))
+        val rows = catalog.addons.first().single().catalogs.filter { it.id.startsWith("genre:") }
+        assertEquals(2, rows.size)
+        val row = catalog.row(connection.id, ServerCatalog.genreCatalogId(movies.id, "s1"))
+        catalog.page(row, row.nextSkip)
+        assertEquals(listOf(movies.id to "s1,s2", movies.id to "s1,s2"), provider.genreRequests)
+        catalog.page(connection, movies.id, 0, mapOf("genre" to "Familijny"))
+        assertEquals(movies.id to "f1,f2", provider.genreRequests.last())
+    }
+
+    @Test
+    fun discoversNewGenresOnRefreshAndThrottlesRepeatedVisits() = runTest {
+        val provider = FakeServerProvider()
+        val movies = FakeServerProvider.MOVIE_LIBRARY
+        provider.genres[movies.id] = listOf(ServerGenre("g1", "Action"))
+        val (catalog, _, _) = catalog(provider, libraries = listOf(movies))
+        catalog.refreshLibrariesIfStale(0)
+        provider.genres[movies.id] = listOf(ServerGenre("g1", "Action"), ServerGenre("g2", "Family"))
+        catalog.refreshLibrariesIfStale(1)
+        assertFalse(catalog.addons.first().single().catalogs.any { it.id == ServerCatalog.genreCatalogId(movies.id, "g2") })
+        catalog.refreshLibrariesIfStale(900_001)
+        assertEquals("Movies · Familijny", catalog.addons.first().single().catalogs.single {
+            it.id == ServerCatalog.genreCatalogId(movies.id, "g2")
+        }.name)
+    }
+
+    @Test
     fun missingGenresAndDeselectedLibrariesDoNotReturnUnfilteredTitles() = runTest {
         val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
         val (catalog, repository, connection) = catalog(libraries = listOf(movies))
@@ -66,6 +100,9 @@ class ServerCatalogTest {
     private val installedAddons = MutableStateFlow<List<Addon>>(emptyList())
     private val context = mockk<Context> {
         every { getString(any()) } returns "Continue watching"
+        every { getString(R.string.genre_comedy) } returns "Komedia"
+        every { getString(R.string.genre_science_fiction) } returns "Science Fiction"
+        every { getString(R.string.genre_family) } returns "Familijny"
     }
     private val addonRepository = mockk<AddonRepository> {
         every { getInstalledAddons() } returns installedAddons
@@ -116,7 +153,7 @@ class ServerCatalogTest {
         assertEquals("Fake · Box", addon.displayName)
         assertTrue(ServerCatalog.isServerAddon(addon.baseUrl))
         assertEquals(listOf("resume", "10", "search.movie"), addon.catalogs.map { it.id })
-        assertEquals("Box · Movies", addon.catalogs.single { it.id == "10" }.name)
+        assertEquals("Movies", addon.catalogs.single { it.id == "10" }.name)
         assertEquals(listOf("10", "search.movie"), catalog.searchAddons.first().single().catalogs.map { it.id })
         assertEquals(listOf("search.movie"), addon.catalogs.filter { it.supportsExtra("search") }.map { it.id })
         assertTrue(addon.catalogs.last().extra.single().isRequired)
@@ -233,12 +270,12 @@ class ServerCatalogTest {
         val (catalog, _, connection) = catalog()
 
         val library = catalog.row(connection.id, FakeServerProvider.MOVIE_LIBRARY.id)
-        assertEquals("Box · Movies", library.catalogName)
+        assertEquals("Movies", library.catalogName)
         assertEquals(ServerCatalog.PAGE_SIZE, library.items.size)
         assertTrue(library.hasMore)
 
         val resume = catalog.row(connection.id, "resume")
-        assertEquals("Box · Continue watching", resume.catalogName)
+        assertEquals("Continue watching", resume.catalogName)
         assertEquals(1, resume.items.size)
 
         val missing = runCatching { catalog.row(connection.id, "unknown") }.exceptionOrNull()

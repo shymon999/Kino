@@ -301,7 +301,7 @@ fun CatalogRowSection(
                     maxLines = 3,
                     overflow = TextOverflow.Clip
                 )
-                if (showAddonName) {
+                if (showAddonName && !com.nuvio.tv.data.mediaserver.ServerCatalog.isServerAddon(catalogRow.addonBaseUrl)) {
                     val addonText = if (catalogTitle.isBlank()) " " else stringResource(R.string.catalog_from_addon, catalogRow.addonName)
                     Text(
                         text = addonText,

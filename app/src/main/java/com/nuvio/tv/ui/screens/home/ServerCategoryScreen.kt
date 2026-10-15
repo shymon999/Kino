@@ -3,6 +3,10 @@ package com.nuvio.tv.ui.screens.home
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -67,8 +71,7 @@ internal fun serverCategoryRows(rows: List<HomeRow>, contentType: String): List<
     }
 
 private fun serverCategoryTitle(row: CatalogRow): String =
-    row.extraArgs["genre"]?.takeIf { row.catalogId.startsWith("genre:") && it.isNotBlank() }
-        ?: row.catalogName.substringAfter(" · ")
+    row.catalogName.substringAfter(" · ")
 
 @Composable
 fun ServerCategoryScreen(
@@ -78,6 +81,14 @@ fun ServerCategoryScreen(
     onNavigateToCatalogSeeAll: (String, String, String) -> Unit,
     categoryFocus: ServerCategoryFocusState = viewModel()
 ) {
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner, homeViewModel) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) homeViewModel.refreshHomeCatalogsIfStale()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val state by homeViewModel.uiState.collectAsStateWithLifecycle()
     val rows = remember(state.homeRows, contentType) { serverCategoryRows(state.homeRows, contentType) }
     if (rows.isEmpty()) {

@@ -15,7 +15,7 @@ fun localizedGenreLabel(context: Context, genre: String): String {
     // Normalize Trakt-style slugs (science-fiction → science fiction) without inventing
     // non-existent genres. Hyphen collapse must keep '&' genres matchable: TMDB
     // "sci-fi & fantasy" becomes "sci fi & fantasy".
-    val key = genre.lowercase().trim().replace("-", " ")
+    val key = com.nuvio.tv.data.mediaserver.canonicalServerGenre(genre)
     return when (key) {
         "action" -> context.getString(R.string.genre_action)
         "adventure" -> context.getString(R.string.genre_adventure)

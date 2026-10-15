@@ -2,6 +2,7 @@ package com.nuvio.tv.data.mediaserver
 
 import android.content.Context
 import com.nuvio.tv.R
+import com.nuvio.tv.ui.util.localizedGenreLabel
 import com.nuvio.tv.core.streams.supportsResource
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.AddonResource
@@ -16,6 +17,8 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.URLEncoder
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -45,6 +48,30 @@ class ServerCatalog @Inject constructor(
     private val repository: ServerRepository,
     private val addonRepository: AddonRepository
 ) {
+    private val libraryRefreshMutex = Mutex()
+    private val libraryRefreshTimes = mutableMapOf<String, Long>()
+
+    suspend fun refreshLibrariesIfStale(nowMs: Long = System.nanoTime() / 1_000_000) {
+        if (!libraryRefreshMutex.tryLock()) return
+        try {
+            repository.enabledConnections().forEach { connection ->
+                val previous = libraryRefreshTimes[connection.id]
+                if (previous != null && nowMs - previous < 15 * 60 * 1_000L) return@forEach
+                libraryRefreshTimes[connection.id] = nowMs
+                try {
+                    repository.refreshLibraries(connection.id)
+                } catch (error: CancellationException) {
+                    libraryRefreshTimes.remove(connection.id)
+                    throw error
+                } catch (_: Exception) {
+                    // Existing cached genres remain usable while the server is unavailable.
+                }
+            }
+        } finally {
+            libraryRefreshMutex.unlock()
+        }
+    }
+
     val detailsLoaded = MutableSharedFlow<ServerItemDetails>(extraBufferCapacity = DETAILS_BUFFER)
 
     val addons: Flow<List<Addon>> = repository.uiState
@@ -90,11 +117,11 @@ class ServerCatalog @Inject constructor(
         val query = extraArgs["search"]?.trim()?.takeIf { it.isNotEmpty() }
         val genreRow = if (catalogId.startsWith(GENRE_PREFIX)) {
             connection.selectedLibraries.firstNotNullOfOrNull { library ->
-                library.genres.firstOrNull { genreCatalogId(library.id, it.id) == catalogId }
+                library.groupedGenres().firstOrNull { group -> group.any { genreCatalogId(library.id, it.id) == catalogId } }
                     ?.let { library to it }
             } ?: throw ServerException(ServerFailure.NOT_FOUND)
         } else null
-        val requestedGenre = genreRow?.second?.name ?: extraArgs["genre"]?.takeIf { it.isNotBlank() }
+        val requestedGenre = genreRow?.second?.first()?.name ?: extraArgs["genre"]?.takeIf { it.isNotBlank() }
         val page = when {
             catalogId == RESUME_ID -> resumePage(connection, skip)
             catalogId.startsWith(COLLECTION_PREFIX) -> pageOf(connection, skip) {
@@ -107,12 +134,15 @@ class ServerCatalog @Inject constructor(
                 val library = genreRow?.first ?: connection.selectedLibraries.firstOrNull { it.id == catalogId }
                     ?: throw ServerException(ServerFailure.NOT_FOUND)
                 val genre = genreRow?.second ?: requestedGenre?.let { name ->
-                    library.genres.firstOrNull { it.name == name }
+                    library.groupedGenres().firstOrNull { group ->
+                        canonicalServerGenre(group.first().name) == canonicalServerGenre(name) ||
+                            localizedGenreLabel(context, group.first().name) == name
+                    }
                         ?: throw ServerException(ServerFailure.NOT_FOUND)
                 }
                 pageOf(connection, skip) {
                     repository.call(connection.id) { provider, session ->
-                        provider.libraryPage(session, library, skip, PAGE_SIZE, genre?.id)
+                        provider.libraryPage(session, library, skip, PAGE_SIZE, genre?.joinToString(",") { it.id })
                     }
                 }
             }
@@ -182,7 +212,7 @@ class ServerCatalog @Inject constructor(
         val resume = CatalogDescriptor(
             type = ContentType.MOVIE,
             id = RESUME_ID,
-            name = "${connection.name} · ${context.getString(R.string.servers_resume_row)}",
+            name = context.getString(R.string.servers_resume_row),
             showInHome = true,
             hasExplicitShowInHome = true
         ).takeIf { provider.supports(ServerCapability.USER_STATE_READ) }
@@ -191,19 +221,20 @@ class ServerCatalog @Inject constructor(
                 type = library.kind.domainType(),
                 rawType = library.kind.contentType,
                 id = library.id,
-                name = "${connection.name} · ${library.name}",
+                name = library.name,
                 extra = listOf(CatalogExtra(name = "skip")) +
-                    listOfNotNull(library.genres.takeIf { it.isNotEmpty() }?.let { genres ->
-                        CatalogExtra(name = "genre", options = genres.map { it.name })
+                    listOfNotNull(library.groupedGenres().takeIf { it.isNotEmpty() }?.let { genres ->
+                        CatalogExtra(name = "genre", options = genres.map { localizedGenreLabel(context, it.first().name) }.sorted())
                     }),
                 showInHome = true,
                 hasExplicitShowInHome = true
             )
             val genreRows = if (library.kind == ServerMediaKind.MOVIE || library.kind == ServerMediaKind.SERIES) {
-                library.genres.map { genre ->
+                library.groupedGenres().map { group ->
+                    val genre = group.first()
                     catalog.copy(
                         id = genreCatalogId(library.id, genre.id),
-                        name = "${library.name} · ${genre.name}",
+                        name = "${library.name} · ${localizedGenreLabel(context, genre.name)}",
                         extra = listOf(CatalogExtra(name = "skip"))
                     )
                 }
@@ -217,7 +248,7 @@ class ServerCatalog @Inject constructor(
                     type = kind.domainType(),
                     rawType = kind.contentType,
                     id = SEARCH_PREFIX + kind.contentType,
-                    name = "${connection.name} · ${context.getString(kind.searchLabel())}",
+                    name = context.getString(kind.searchLabel()),
                     extra = listOf(CatalogExtra(name = "search", isRequired = true))
                 )
             }

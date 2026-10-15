@@ -20,7 +20,7 @@ class ServerCategoryRowsTest {
     @Test
     fun categoriesKeepOnlyTheSelectedServerTypeInTheExistingOrder() {
         val movies = row("movie")
-        val otherMovies = row("movie", "genre:lib:g2").copy(extraArgs = mapOf("genre" to "Komedia"))
+        val otherMovies = row("movie", "genre:lib:g2").copy(catalogName = "Filmy · Komedia", extraArgs = mapOf("genre" to "Comedy"))
         val rows = listOf(otherMovies, row("series"), movies, row("movie", "resume"), row("movie", server = false))
         val selected = serverCategoryRows(rows.map(HomeRow::Catalog), "movie").filterIsInstance<HomeRow.Catalog>()
         assertEquals(listOf("Komedia", "Akcja"), selected.map { it.row.catalogName })
