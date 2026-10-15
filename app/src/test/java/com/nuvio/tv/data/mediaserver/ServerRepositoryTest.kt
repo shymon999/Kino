@@ -10,6 +10,22 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerRepositoryTest {
+    @Test
+    fun refreshingLibrariesPersistsGenresAndPreservesSelection() = runTest {
+        val provider = FakeServerProvider().apply {
+            genres[FakeServerProvider.MOVIE_LIBRARY.id] = listOf(ServerGenre("g1", "Akcja"))
+        }
+        val (repository, connection) = fakeServerRepository(provider)
+        repository.setLibrarySelected(connection.id, FakeServerProvider.MOVIE_LIBRARY.id, false)
+        repository.refreshLibraries(connection.id)
+        val library = repository.connection(connection.id)!!.libraries.first { it.id == FakeServerProvider.MOVIE_LIBRARY.id }
+        assertFalse(library.selected)
+        assertEquals(listOf(ServerGenre("g1", "Akcja")), library.genres)
+        repository.selectProfile(2)
+        repository.selectProfile(1)
+        assertEquals(library, repository.connection(connection.id)!!.libraries.first { it.id == library.id })
+    }
+
     private val persistence = MemoryServerPersistence()
     private val repository = ServerRepository(
         persistence = persistence,

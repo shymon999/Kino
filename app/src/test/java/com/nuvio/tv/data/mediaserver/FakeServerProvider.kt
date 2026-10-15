@@ -31,6 +31,11 @@ internal class FakeServerProvider(
     val failingPlayed = mutableSetOf<String>()
     val failingLibraries = mutableSetOf<String>()
     val userStates = mutableMapOf<String, List<ServerUserState>>()
+    val genres = mutableMapOf<String, List<ServerGenre>>()
+    val genreRequests = mutableListOf<Pair<String, String?>>()
+
+    override suspend fun libraryGenres(session: ServerSession, library: ServerLibrary): List<ServerGenre> =
+        genres[library.id].orEmpty()
 
     override suspend fun libraries(session: ServerSession): List<ServerLibrary> = listOf(MOVIE_LIBRARY, SERIES_LIBRARY)
 
@@ -38,8 +43,10 @@ internal class FakeServerProvider(
         session: ServerSession,
         library: ServerLibrary,
         start: Int,
-        limit: Int
+        limit: Int,
+        genreId: String?
     ): ServerPage<ServerTitle> {
+        genreRequests += library.id to genreId
         if (library.id in failingLibraries) throw ServerException(ServerFailure.UNREACHABLE)
         val ids = (start until minOf(start + limit, movieCount)).map { it.toString() }
         return ServerPage(ids.map { title(session, it) }, movieCount)

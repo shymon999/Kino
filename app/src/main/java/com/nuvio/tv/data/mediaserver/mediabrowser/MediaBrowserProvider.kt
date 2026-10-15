@@ -5,6 +5,7 @@ import com.nuvio.tv.data.mediaserver.ServerCapability
 import com.nuvio.tv.data.mediaserver.ServerEpisode
 import com.nuvio.tv.data.mediaserver.ServerException
 import com.nuvio.tv.data.mediaserver.ServerFailure
+import com.nuvio.tv.data.mediaserver.ServerGenre
 import com.nuvio.tv.data.mediaserver.ServerIndexEntry
 import com.nuvio.tv.data.mediaserver.ServerItemDetails
 import com.nuvio.tv.data.mediaserver.ServerLibrary
@@ -113,15 +114,49 @@ internal abstract class MediaBrowserProvider(
                 ServerLibrary(id = view.id, name = view.name.orEmpty(), kind = kind)
             }
 
+    override suspend fun libraryGenres(session: ServerSession, library: ServerLibrary): List<ServerGenre> {
+        if (library.kind == ServerMediaKind.COLLECTION) return emptyList()
+        val genres = mutableListOf<ServerGenre>()
+        var start = 0
+        while (true) {
+            val page = get(
+                session,
+                Endpoint("/Genres"),
+                ItemsResult.serializer(),
+                mapOf(
+                    "parentId" to library.id,
+                    "userId" to session.userId,
+                    "includeItemTypes" to library.kind.itemType(),
+                    "recursive" to "true",
+                    "sortBy" to "SortName",
+                    "sortOrder" to "Ascending",
+                    "startIndex" to start.toString(),
+                    "limit" to "200",
+                    "enableTotalRecordCount" to "true"
+                )
+            )
+            val added = page.items.mapNotNull { item ->
+                item.name?.trim()?.takeIf { it.isNotEmpty() && item.id.isNotBlank() }
+                    ?.let { ServerGenre(item.id, it) }
+            }.filter { candidate -> genres.none { it.id == candidate.id } }
+            genres += added
+            start += page.items.size
+            if (page.items.isEmpty() || added.isEmpty() ||
+                (page.totalRecordCount?.let { start >= it } ?: (page.items.size < 200))) break
+        }
+        return genres.distinctBy { it.name }.sortedBy { it.name.lowercase() }
+    }
+
     override suspend fun libraryPage(
         session: ServerSession,
         library: ServerLibrary,
         start: Int,
-        limit: Int
+        limit: Int,
+        genreId: String?
     ): ServerPage<ServerTitle> {
         val key = "${session.connection.id}:${library.id}"
-        var result = libraryItems(session, library, start, limit, libraryGenres[key])
-        if (result.items.isEmpty() && start == 0 && !libraryGenres.containsKey(key) && library.kind != ServerMediaKind.COLLECTION) {
+        var result = libraryItems(session, library, start, limit, genreId ?: libraryGenres[key])
+        if (genreId == null && result.items.isEmpty() && start == 0 && !libraryGenres.containsKey(key) && library.kind != ServerMediaKind.COLLECTION) {
             val genre = firstGenre(session, library).orEmpty()
             libraryGenres[key] = genre
             if (genre.isNotEmpty()) result = libraryItems(session, library, start, limit, genre)

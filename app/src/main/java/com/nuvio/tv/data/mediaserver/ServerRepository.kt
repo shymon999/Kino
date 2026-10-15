@@ -132,7 +132,7 @@ class ServerRepository(
             useCatalogMetadata = existing?.useCatalogMetadata ?: false,
             importWatchState = existing?.importWatchState ?: false
         )
-        val libraries = provider.libraries(ServerSession(draft, signIn.token))
+        val libraries = librariesWithGenres(provider, ServerSession(draft, signIn.token))
         if (startedGeneration != generation || profileId != loadedProfileId) {
             throw CancellationException("Server scope changed")
         }
@@ -154,7 +154,7 @@ class ServerRepository(
     }
 
     suspend fun refreshLibraries(connectionId: String) {
-        val libraries = call(connectionId) { provider, session -> provider.libraries(session) }
+        val libraries = call(connectionId) { provider, session -> librariesWithGenres(provider, session) }
         updateConnection(connectionId) { it.copy(libraries = mergeLibraries(it.libraries, libraries)) }
     }
 
@@ -322,6 +322,19 @@ class ServerRepository(
         val selection = previous.associate { it.id to it.selected }
         return current.map { library -> library.copy(selected = selection[library.id] ?: true) }
     }
+
+    private suspend fun librariesWithGenres(provider: ServerProvider, session: ServerSession): List<ServerLibrary> =
+        provider.libraries(session).map { library ->
+            val genres = try {
+                provider.libraryGenres(session, library)
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                Log.w(TAG, "Unable to refresh library genres", error)
+                session.connection.libraries.firstOrNull { it.id == library.id }?.genres.orEmpty()
+            }
+            library.copy(genres = genres)
+        }
 
     private fun newId(prefix: String): String =
         prefix + (0 until 15).joinToString("") { Random.nextInt(16).toString(16) }

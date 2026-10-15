@@ -31,11 +31,15 @@ fun ServerMediaKind.domainType(): ContentType = when (this) {
 }
 
 @Serializable
+data class ServerGenre(val id: String, val name: String)
+
+@Serializable
 data class ServerLibrary(
     val id: String,
     val name: String,
     val kind: ServerMediaKind,
-    val selected: Boolean = true
+    val selected: Boolean = true,
+    val genres: List<ServerGenre> = emptyList()
 ) {
     fun holds(kind: ServerMediaKind): Boolean =
         this.kind == kind || (this.kind == ServerMediaKind.MIXED && kind != ServerMediaKind.COLLECTION)

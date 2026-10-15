@@ -20,11 +20,14 @@ interface ServerProvider {
 
     suspend fun libraries(session: ServerSession): List<ServerLibrary>
 
+    suspend fun libraryGenres(session: ServerSession, library: ServerLibrary): List<ServerGenre> = emptyList()
+
     suspend fun libraryPage(
         session: ServerSession,
         library: ServerLibrary,
         start: Int,
-        limit: Int
+        limit: Int,
+        genreId: String? = null
     ): ServerPage<ServerTitle>
 
     suspend fun details(session: ServerSession, itemId: String): ServerItemDetails
