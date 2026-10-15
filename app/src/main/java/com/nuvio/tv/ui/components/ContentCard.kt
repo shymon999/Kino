@@ -611,6 +611,11 @@ fun ContentCard(
                     )
                 }
 
+                if (showImdbRatings && imageUrl != PLACEHOLDER_IMAGE_URL) {
+                    PosterRatingBadge(item.imdbRating, Modifier.align(Alignment.TopStart)
+                        .padding(NuvioTheme.spacing.sm).zIndex(2f))
+                }
+
                 if (isWatched) {
                     WatchedMarker(
                         modifier = Modifier

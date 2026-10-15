@@ -1505,6 +1505,9 @@ private fun ModernCarouselCard(
                     )
                 }
 
+                com.nuvio.tv.ui.components.PosterRatingBadge(item.posterRating,
+                    Modifier.align(Alignment.TopStart).padding(NuvioTheme.spacing.sm).zIndex(2f))
+
                 if (isWatched) {
                     WatchedMarker(
                         modifier = Modifier

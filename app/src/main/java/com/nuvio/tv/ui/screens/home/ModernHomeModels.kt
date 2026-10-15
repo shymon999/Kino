@@ -110,7 +110,8 @@ data class ModernCarouselItem(
     val imageUrl: String?,
     val heroPreview: HeroPreview,
     val payload: ModernPayload,
-    val metaPreview: MetaPreview? = null
+    val metaPreview: MetaPreview? = null,
+    val posterRating: Float? = null
 )
 
 @Immutable
@@ -513,6 +514,7 @@ internal fun buildCatalogItem(
 
     return ModernCarouselItem(
         key = "catalog_${row.key()}_${item.id}_${occurrence}",
+        posterRating = item.imdbRating?.takeIf { showImdbRatings },
         title = item.name,
         subtitle = item.releaseInfo,
         imageUrl = if (useLandscapePosters) {
