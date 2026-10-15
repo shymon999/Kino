@@ -279,7 +279,7 @@ internal suspend fun HomeViewModel.loadAllCatalogsPipeline(
             val custom = titlesSnapshot[key]
             val baseName = if (!custom.isNullOrBlank()) custom else catalog.name
             val catalogName = baseName.replaceFirstChar { it.uppercase() }
-            if (!showTypeSuffix) return catalogName
+            if (!showTypeSuffix || com.nuvio.tv.data.mediaserver.ServerCatalog.isServerAddon(addon.baseUrl)) return catalogName
             val typeLabel = when (catalog.apiType.lowercase()) {
                 "movie" -> strTypeMovie.ifBlank { catalog.apiType.replaceFirstChar { it.uppercase() } }
                 "series" -> strTypeSeries.ifBlank { catalog.apiType.replaceFirstChar { it.uppercase() } }
@@ -416,97 +416,111 @@ internal fun HomeViewModel.loadCatalogPipeline(
 ) {
     val loadJob = viewModelScope.launch {
         var hasCountedCompletion = false
-        catalogLoadSemaphore.withPermit {
-            if (generation != catalogLoadGeneration) return@withPermit
-            val supportsSkip = catalog.supportsExtra("skip")
-            val skipStep = catalog.skipStep()
-            Log.d(
-                HomeViewModel.TAG,
-                "Loading home catalog addonId=${addon.id} addonName=${addon.name} type=${catalog.apiType} catalogId=${catalog.id} catalogName=${catalog.name} supportsSkip=$supportsSkip skipStep=$skipStep"
-            )
-            catalogRepository.getCatalog(
-                addonBaseUrl = addon.baseUrl,
-                addonId = addon.id,
-                addonName = addon.displayName,
-                catalogId = catalog.id,
-                catalogName = catalog.name,
-                type = catalog.apiType,
-                skip = 0,
-                skipStep = skipStep,
-                supportsSkip = supportsSkip
-            ).collect { result ->
-                if (generation != catalogLoadGeneration) return@collect
-                when (result) {
-                    is NetworkResult.Success -> {
-                        val key = catalogKey(
-                            addonId = addon.id,
-                            type = catalog.apiType,
-                            catalogId = catalog.id
-                        )
-                        if (!isRefresh || !mergeRefreshedCatalogRow(key, result.data, requestedByUser, forceReplace)) {
-                            replaceCatalogRow(key, result.data)
+        try {
+            catalogLoadSemaphore.withPermit {
+                if (generation != catalogLoadGeneration) return@withPermit
+                val supportsSkip = catalog.supportsExtra("skip")
+                val skipStep = catalog.skipStep()
+                Log.d(
+                    HomeViewModel.TAG,
+                    "Loading home catalog addonId=${addon.id} addonName=${addon.name} type=${catalog.apiType} catalogId=${catalog.id} catalogName=${catalog.name} supportsSkip=$supportsSkip skipStep=$skipStep"
+                )
+                catalogRepository.getCatalog(
+                    addonBaseUrl = addon.baseUrl,
+                    addonId = addon.id,
+                    addonName = addon.displayName,
+                    catalogId = catalog.id,
+                    catalogName = catalog.name,
+                    type = catalog.apiType,
+                    skip = 0,
+                    skipStep = skipStep,
+                    supportsSkip = supportsSkip
+                ).collect { result ->
+                    if (generation != catalogLoadGeneration) return@collect
+                    when (result) {
+                        is NetworkResult.Success -> {
+                            val key = catalogKey(
+                                addonId = addon.id,
+                                type = catalog.apiType,
+                                catalogId = catalog.id
+                            )
+                            if (!isRefresh || !mergeRefreshedCatalogRow(key, result.data, requestedByUser, forceReplace)) {
+                                replaceCatalogRow(key, result.data)
+                            }
+                            // Trigger MDBList batch for newly loaded catalog data.
+                            onCatalogRowItemsChanged(key)
+                            // Remove placeholder descriptor now that real data is available
+                            synchronized(catalogStateLock) {
+                                placeholderDescriptors.removeAll { it.catalogKey == key }
+                            }
+                            if (!hasCountedCompletion) {
+                                pendingCatalogLoads = (pendingCatalogLoads - 1).coerceAtLeast(0)
+                                hasCountedCompletion = true
+                            }
+                            Log.d(
+                                HomeViewModel.TAG,
+                                "Home catalog loaded addonId=${addon.id} type=${catalog.apiType} catalogId=${catalog.id} items=${result.data.items.size} pending=$pendingCatalogLoads"
+                            )
+                            if (pendingCatalogLoads == 0) {
+                                catalogsLoadInProgress = false
+                            }
+                            // Batch updates: only trigger a UI rebuild when all
+                            // eager catalogs have completed, or let the debounce
+                            // in scheduleUpdateCatalogRows coalesce intermediate
+                            // arrivals.  When pending == 0 we always flush.
+                            if (pendingCatalogLoads == 0) {
+                                scheduleUpdateCatalogRows()
+                            } else if (!hasRenderedFirstCatalog) {
+                                // First content arriving — show it quickly so the
+                                // user sees something beyond placeholders.
+                                scheduleUpdateCatalogRows()
+                            }
+                            // Otherwise, let the next completion or the final
+                            // pendingCatalogLoads==0 trigger the update.
                         }
-                        // Trigger MDBList batch for newly loaded catalog data.
-                        onCatalogRowItemsChanged(key)
-                        // Remove placeholder descriptor now that real data is available
-                        synchronized(catalogStateLock) {
-                            placeholderDescriptors.removeAll { it.catalogKey == key }
+                        is NetworkResult.Error -> {
+                            val errorKey = catalogKey(
+                                addonId = addon.id,
+                                type = catalog.apiType,
+                                catalogId = catalog.id
+                            )
+                            // Remove placeholder on error so it doesn't show forever
+                            synchronized(catalogStateLock) {
+                                placeholderDescriptors.removeAll { it.catalogKey == errorKey }
+                            }
+                            if (!hasCountedCompletion) {
+                                pendingCatalogLoads = (pendingCatalogLoads - 1).coerceAtLeast(0)
+                                hasCountedCompletion = true
+                            }
+                            Log.w(
+                                HomeViewModel.TAG,
+                                "Home catalog failed addonId=${addon.id} type=${catalog.apiType} catalogId=${catalog.id} code=${result.code} message=${result.message}"
+                            )
+                            if (pendingCatalogLoads == 0) {
+                                catalogsLoadInProgress = false
+                            }
+                            // Same batching logic as success path.
+                            if (pendingCatalogLoads == 0 || !hasRenderedFirstCatalog) {
+                                scheduleUpdateCatalogRows()
+                            }
                         }
-                        if (!hasCountedCompletion) {
-                            pendingCatalogLoads = (pendingCatalogLoads - 1).coerceAtLeast(0)
-                            hasCountedCompletion = true
+                        NetworkResult.Loading -> {
+                            /* Handled by individual row */
                         }
-                        Log.d(
-                            HomeViewModel.TAG,
-                            "Home catalog loaded addonId=${addon.id} type=${catalog.apiType} catalogId=${catalog.id} items=${result.data.items.size} pending=$pendingCatalogLoads"
-                        )
-                        if (pendingCatalogLoads == 0) {
-                            catalogsLoadInProgress = false
-                        }
-                        // Batch updates: only trigger a UI rebuild when all
-                        // eager catalogs have completed, or let the debounce
-                        // in scheduleUpdateCatalogRows coalesce intermediate
-                        // arrivals.  When pending == 0 we always flush.
-                        if (pendingCatalogLoads == 0) {
-                            scheduleUpdateCatalogRows()
-                        } else if (!hasRenderedFirstCatalog) {
-                            // First content arriving — show it quickly so the
-                            // user sees something beyond placeholders.
-                            scheduleUpdateCatalogRows()
-                        }
-                        // Otherwise, let the next completion or the final
-                        // pendingCatalogLoads==0 trigger the update.
-                    }
-                    is NetworkResult.Error -> {
-                        val errorKey = catalogKey(
-                            addonId = addon.id,
-                            type = catalog.apiType,
-                            catalogId = catalog.id
-                        )
-                        // Remove placeholder on error so it doesn't show forever
-                        synchronized(catalogStateLock) {
-                            placeholderDescriptors.removeAll { it.catalogKey == errorKey }
-                        }
-                        if (!hasCountedCompletion) {
-                            pendingCatalogLoads = (pendingCatalogLoads - 1).coerceAtLeast(0)
-                            hasCountedCompletion = true
-                        }
-                        Log.w(
-                            HomeViewModel.TAG,
-                            "Home catalog failed addonId=${addon.id} type=${catalog.apiType} catalogId=${catalog.id} code=${result.code} message=${result.message}"
-                        )
-                        if (pendingCatalogLoads == 0) {
-                            catalogsLoadInProgress = false
-                        }
-                        // Same batching logic as success path.
-                        if (pendingCatalogLoads == 0 || !hasRenderedFirstCatalog) {
-                            scheduleUpdateCatalogRows()
-                        }
-                    }
-                    NetworkResult.Loading -> {
-                        /* Handled by individual row */
                     }
                 }
+            }
+        } finally {
+            // A cancelled request must not leave a permanent loading row. An older
+            // generation must never remove placeholders belonging to its replacement.
+            if (generation == catalogLoadGeneration && !hasCountedCompletion) {
+                val key = catalogKey(addonId = addon.id, type = catalog.apiType, catalogId = catalog.id)
+                synchronized(catalogStateLock) {
+                    placeholderDescriptors.removeAll { it.catalogKey == key }
+                }
+                pendingCatalogLoads = (pendingCatalogLoads - 1).coerceAtLeast(0)
+                if (pendingCatalogLoads == 0) catalogsLoadInProgress = false
+                scheduleUpdateCatalogRows()
             }
         }
     }

@@ -2,6 +2,9 @@ package com.nuvio.tv.data.mediaserver
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -10,6 +13,42 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerRepositoryTest {
+    @Test
+    fun libraryRefreshDoesNotCancelInFlightCallsEvenWhenGenresChange() = runTest {
+        val provider = FakeServerProvider()
+        val (repository, connection) = fakeServerRepository(provider)
+        val release = CompletableDeferred<Unit>()
+        val call = async(start = CoroutineStart.UNDISPATCHED) {
+            repository.call(connection.id) { _, _ -> release.await(); "loaded" }
+        }
+        repository.refreshLibraries(connection.id)
+        val revision = repository.uiState.value.revision
+        repository.refreshLibraries(connection.id)
+        assertEquals(revision, repository.uiState.value.revision)
+        provider.genres[FakeServerProvider.MOVIE_LIBRARY.id] = listOf(ServerGenre("new", "Family"))
+        repository.refreshLibraries(connection.id)
+        release.complete(Unit)
+        assertEquals("loaded", call.await())
+    }
+
+    @Test
+    fun accessChangesStillInvalidateInFlightCalls() = runTest {
+        for (change in listOf<(ServerRepository, String) -> Unit>(
+            { repository, id -> repository.setEnabled(id, false) },
+            { repository, _ -> repository.selectProfile(2) },
+            { repository, id -> repository.setLibrarySelected(id, FakeServerProvider.MOVIE_LIBRARY.id, false) }
+        )) {
+            val (repository, connection) = fakeServerRepository(FakeServerProvider())
+            val release = CompletableDeferred<Unit>()
+            val call = async(start = CoroutineStart.UNDISPATCHED) {
+                runCatching { repository.call(connection.id) { _, _ -> release.await(); "stale" } }
+            }
+            change(repository, connection.id)
+            release.complete(Unit)
+            assertTrue(call.await().exceptionOrNull() is kotlinx.coroutines.CancellationException)
+        }
+    }
+
     @Test
     fun refreshingLibrariesPersistsGenresAndPreservesSelection() = runTest {
         val provider = FakeServerProvider().apply {

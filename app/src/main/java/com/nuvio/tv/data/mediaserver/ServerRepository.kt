@@ -88,6 +88,7 @@ class ServerRepository(
         connectionId: String,
         block: suspend (ServerProvider, ServerSession) -> T
     ): T {
+        ensureLoaded()
         val startedGeneration = generation
         val connection = connection(connectionId) ?: throw ServerException(ServerFailure.NOT_FOUND)
         if (!connection.enabled) throw ServerException(ServerFailure.UNREACHABLE)
@@ -155,7 +156,8 @@ class ServerRepository(
 
     suspend fun refreshLibraries(connectionId: String) {
         val libraries = call(connectionId) { provider, session -> librariesWithGenres(provider, session) }
-        updateConnection(connectionId) { it.copy(libraries = mergeLibraries(it.libraries, libraries)) }
+        // Refreshing cached metadata keeps the same account and access scope.
+        updateConnection(connectionId, invalidateScope = false) { it.copy(libraries = mergeLibraries(it.libraries, libraries)) }
     }
 
     fun setLibrarySelected(connectionId: String, libraryId: String, selected: Boolean) {
@@ -277,22 +279,32 @@ class ServerRepository(
         )
     }
 
-    private fun updateConnection(connectionId: String, transform: (ServerConnection) -> ServerConnection) {
+    private fun updateConnection(
+        connectionId: String,
+        invalidateScope: Boolean = true,
+        transform: (ServerConnection) -> ServerConnection
+    ) {
         ensureLoaded()
         val connections = mutableState.value.connections.map { if (it.id == connectionId) transform(it) else it }
-        save(connections, synchronized(lock) { tokens })
+        save(connections, synchronized(lock) { tokens }, invalidateScope = invalidateScope)
     }
 
-    private fun save(connections: List<ServerConnection>, updatedTokens: Map<String, String>, local: Boolean = true) {
+    private fun save(
+        connections: List<ServerConnection>,
+        updatedTokens: Map<String, String>,
+        local: Boolean = true,
+        invalidateScope: Boolean = true
+    ) {
         val profileId = loadedProfileId ?: return
         val retained = updatedTokens.filterKeys { ref -> connections.any { it.credentialRef == ref } }
+        if (connections == mutableState.value.connections && retained == synchronized(lock) { tokens }) return
         if (local) {
             pendingPush = true
             localVersion++
         }
         persist(connections, retained)
         synchronized(lock) { tokens = retained }
-        generation++
+        if (invalidateScope) generation++
         mutableState.update { it.copy(connections = connections, revision = it.revision + 1) }
         if (local) mutableLocalChanges.tryEmit(profileId)
     }
