@@ -5,6 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.TextStyle
@@ -38,7 +39,7 @@ fun FocusMarqueeText(
     val needsDirectionOverride = textDirection != currentDirection
 
     val textModifier = if (focused) {
-        modifier.basicMarquee(iterations = MarqueeIterations, velocity = MarqueeVelocity)
+        modifier.clipToBounds().basicMarquee(iterations = MarqueeIterations, velocity = MarqueeVelocity)
     } else {
         modifier
     }

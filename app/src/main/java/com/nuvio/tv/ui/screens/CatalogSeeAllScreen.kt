@@ -216,7 +216,8 @@ fun CatalogSeeAllScreen(
             )
         }
 
-        if (uiState.catalogAddonNameEnabled) {
+        if (uiState.catalogAddonNameEnabled &&
+            catalogRow?.addonBaseUrl?.let { !com.nuvio.tv.data.mediaserver.ServerCatalog.isServerAddon(it) } == true) {
             catalogRow?.addonName?.let { addonName ->
                 Text(
                     modifier = Modifier.padding(horizontal = NuvioTheme.spacing.xxxl),
@@ -270,6 +271,7 @@ fun CatalogSeeAllScreen(
                             item = item,
                             posterCardStyle = posterCardStyle,
                             showLabel = uiState.posterLabelsEnabled,
+                            showImdbRatings = uiState.homeImdbRatingsVisibility.showRatings,
                             isWatched = isWatched,
                             focusRequester = if (index == focusedItemIndex) restoreFocusRequester else null,
                             onFocused = {

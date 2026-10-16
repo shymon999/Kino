@@ -69,6 +69,7 @@ fun GridContentCard(
     modifier: Modifier = Modifier,
     posterCardStyle: PosterCardStyle = PosterCardDefaults.Style,
     showLabel: Boolean = true,
+    showImdbRatings: Boolean = false,
     showLogo: Boolean = false,
     imageCrossfade: Boolean = true,
     isWatched: Boolean = false,
@@ -343,6 +344,13 @@ fun GridContentCard(
                             .fillMaxWidth()
                             .heightIn(max = cardHeight * 0.35f)
                             .padding(horizontal = NuvioTheme.spacing.lg, vertical = 14.dp)
+                    )
+                }
+
+                if (showImdbRatings) {
+                    PosterRatingBadge(
+                        item.imdbRating,
+                        Modifier.align(Alignment.TopStart).padding(NuvioTheme.spacing.sm).zIndex(2f)
                     )
                 }
 
