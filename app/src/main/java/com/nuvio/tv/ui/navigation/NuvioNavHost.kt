@@ -1223,6 +1223,7 @@ private fun PlaybackNavHost(
             SettingsScreen(
                 showBuiltInHeader = !hideBuiltInHeaders,
                 onNavigateToAddons = { navController.navigate(Screen.AddonManager.route) },
+                onNavigateToCatalogOrder = { navController.navigate(Screen.CatalogOrder.route) },
                 onNavigateToPlugins = { navController.navigate(Screen.Plugins.route) },
                 onNavigateToAuthQrSignIn = { navController.navigate(Screen.AuthQrSignIn.route) },
                 onNavigateToManageProfiles = { navController.navigate(Screen.ManageProfiles.route) },

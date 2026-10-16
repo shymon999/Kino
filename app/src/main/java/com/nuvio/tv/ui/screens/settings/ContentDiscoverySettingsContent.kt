@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Dns
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.filled.Power
+import androidx.compose.material.icons.filled.Reorder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -29,6 +30,7 @@ import com.nuvio.tv.ui.theme.NuvioTheme
 @Composable
 internal fun ContentDiscoverySettingsContent(
     onNavigateToAddons: () -> Unit,
+    onNavigateToCatalogOrder: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     showPlugins: Boolean,
     initialFocusRequester: FocusRequester?
@@ -57,6 +59,7 @@ internal fun ContentDiscoverySettingsContent(
     when (val page = serverPage) {
         null -> ContentDiscoveryHub(
             onNavigateToAddons = onNavigateToAddons,
+            onNavigateToCatalogOrder = onNavigateToCatalogOrder,
             onNavigateToPlugins = onNavigateToPlugins,
             onNavigateToServers = { serverPage = SERVERS_PAGE },
             showPlugins = showPlugins,
@@ -79,6 +82,7 @@ internal fun ContentDiscoverySettingsContent(
 @Composable
 private fun ContentDiscoveryHub(
     onNavigateToAddons: () -> Unit,
+    onNavigateToCatalogOrder: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToServers: () -> Unit,
     showPlugins: Boolean,
@@ -95,15 +99,21 @@ private fun ContentDiscoveryHub(
         )
         SettingsGroupCard(modifier = Modifier.fillMaxWidth()) {
             SettingsActionRow(
-                title = stringResource(R.string.addon_title),
-                subtitle = stringResource(R.string.settings_content_discovery_addons_subtitle),
-                onClick = onNavigateToAddons,
-                leadingIcon = Icons.Default.Extension,
+                title = stringResource(R.string.catalog_order_title),
+                subtitle = stringResource(R.string.catalog_order_subtitle),
+                onClick = onNavigateToCatalogOrder,
+                leadingIcon = Icons.Default.Reorder,
                 modifier = if (initialFocusRequester != null) {
                     Modifier.focusRequester(initialFocusRequester)
                 } else {
                     Modifier
                 }
+            )
+            SettingsActionRow(
+                title = stringResource(R.string.addon_title),
+                subtitle = stringResource(R.string.settings_content_discovery_addons_subtitle),
+                onClick = onNavigateToAddons,
+                leadingIcon = Icons.Default.Extension
             )
             SettingsActionRow(
                 title = stringResource(R.string.settings_media_servers),

@@ -169,6 +169,7 @@ private fun settingsSectionSpec(category: SettingsCategory): SettingsSectionSpec
 fun SettingsScreen(
     showBuiltInHeader: Boolean = true,
     onNavigateToAddons: () -> Unit = {},
+    onNavigateToCatalogOrder: () -> Unit = {},
     onNavigateToPlugins: () -> Unit = {},
     onNavigateToAuthQrSignIn: () -> Unit = {},
     onNavigateToManageProfiles: () -> Unit = {},
@@ -628,6 +629,7 @@ fun SettingsScreen(
                                 integrationAnimeSkipFocusRequester = integrationAnimeSkipFocusRequester,
                                 onNavigateToManageProfiles = onNavigateToManageProfiles,
                                 onNavigateToAddons = onNavigateToAddons,
+                                onNavigateToCatalogOrder = onNavigateToCatalogOrder,
                                 onNavigateToPlugins = onNavigateToPlugins,
                                 onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
                                 onNavigateToSupportersContributors = onNavigateToSupportersContributors,
@@ -778,6 +780,7 @@ fun SettingsScreen(
                         integrationAnimeSkipFocusRequester = integrationAnimeSkipFocusRequester,
                         onNavigateToManageProfiles = onNavigateToManageProfiles,
                         onNavigateToAddons = onNavigateToAddons,
+                        onNavigateToCatalogOrder = onNavigateToCatalogOrder,
                         onNavigateToPlugins = onNavigateToPlugins,
                         onNavigateToAuthQrSignIn = onNavigateToAuthQrSignIn,
                         onNavigateToSupportersContributors = onNavigateToSupportersContributors,
@@ -806,6 +809,7 @@ private fun SettingsDetailPane(
     integrationAnimeSkipFocusRequester: FocusRequester,
     onNavigateToManageProfiles: () -> Unit,
     onNavigateToAddons: () -> Unit,
+    onNavigateToCatalogOrder: () -> Unit,
     onNavigateToPlugins: () -> Unit,
     onNavigateToAuthQrSignIn: () -> Unit,
     onNavigateToSupportersContributors: () -> Unit,
@@ -905,6 +909,7 @@ private fun SettingsDetailPane(
         )
         SettingsCategory.CONTENT_DISCOVERY -> ContentDiscoverySettingsContent(
             onNavigateToAddons = onNavigateToAddons,
+            onNavigateToCatalogOrder = onNavigateToCatalogOrder,
             onNavigateToPlugins = onNavigateToPlugins,
             showPlugins = AppFeaturePolicy.pluginsEnabled && !isEssentialMode,
             initialFocusRequester = if (allowDetailAutofocus) {
