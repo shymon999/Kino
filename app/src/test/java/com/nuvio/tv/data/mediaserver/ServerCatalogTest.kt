@@ -56,16 +56,19 @@ class ServerCatalogTest {
     @Test
     fun aliasesShareOneRowAndQueryAllGenreIdsWithoutChangingPagination() = runTest {
         val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(
+            ServerGenre("s0", "Sci-Fi & Fantasy"),
             ServerGenre("s1", "Sci-Fi"), ServerGenre("s2", "Science Fiction"),
+            ServerGenre("x1", "Fantasy"),
             ServerGenre("f1", "Family"), ServerGenre("f2", "Familijny")
         ))
         val provider = FakeServerProvider()
         val (catalog, _, connection) = catalog(provider, libraries = listOf(movies))
         val rows = catalog.addons.first().single().catalogs.filter { it.id.startsWith("genre:") }
-        assertEquals(2, rows.size)
+        assertEquals(3, rows.size)
+        assertEquals("Movies · Science Fiction", rows.single { it.id == ServerCatalog.genreCatalogId(movies.id, "s0") }.name)
         val row = catalog.row(connection.id, ServerCatalog.genreCatalogId(movies.id, "s1"))
         catalog.page(row, row.nextSkip)
-        assertEquals(listOf(movies.id to "s1,s2", movies.id to "s1,s2"), provider.genreRequests)
+        assertEquals(listOf(movies.id to "s0,s1,s2", movies.id to "s0,s1,s2"), provider.genreRequests)
         catalog.page(connection, movies.id, 0, mapOf("genre" to "Familijny"))
         assertEquals(movies.id to "f1,f2", provider.genreRequests.last())
     }

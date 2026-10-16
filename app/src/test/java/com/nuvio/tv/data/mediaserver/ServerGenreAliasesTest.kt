@@ -8,6 +8,8 @@ class ServerGenreAliasesTest {
     @Test
     fun groupsEquivalentNamesAcrossLanguagesAndSpelling() {
         assertEquals(canonicalServerGenre("Sci-Fi"), canonicalServerGenre("Science Fiction"))
+        listOf("Sci-Fi & Fantasy", "Sci-Fi and Fantasy", "Sci-Fi i fantasy", "Science Fiction & Fantasy")
+            .forEach { assertEquals(canonicalServerGenre("Sci-Fi"), canonicalServerGenre(it)) }
         assertEquals(canonicalServerGenre("Family"), canonicalServerGenre("Familijny"))
         assertEquals(canonicalServerGenre("Action"), canonicalServerGenre("Akcja"))
         assertEquals(canonicalServerGenre(" COMEDY "), canonicalServerGenre("Komedia"))

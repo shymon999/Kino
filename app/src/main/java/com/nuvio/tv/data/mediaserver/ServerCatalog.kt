@@ -136,7 +136,7 @@ class ServerCatalog @Inject constructor(
                 val genre = genreRow?.second ?: requestedGenre?.let { name ->
                     library.groupedGenres().firstOrNull { group ->
                         canonicalServerGenre(group.first().name) == canonicalServerGenre(name) ||
-                            localizedGenreLabel(context, group.first().name) == name
+                            genreLabel(group.first().name) == name
                     }
                         ?: throw ServerException(ServerFailure.NOT_FOUND)
                 }
@@ -183,8 +183,15 @@ class ServerCatalog @Inject constructor(
     }
 
     suspend fun row(connectionId: String, catalogId: String): CatalogRow {
-        val addon = repository.connection(connectionId)?.let(::addonFor) ?: throw ServerException(ServerFailure.NOT_FOUND)
-        val descriptor = addon.catalogs.firstOrNull { it.id == catalogId } ?: throw ServerException(ServerFailure.NOT_FOUND)
+        val connection = repository.connection(connectionId) ?: throw ServerException(ServerFailure.NOT_FOUND)
+        val addon = addonFor(connection) ?: throw ServerException(ServerFailure.NOT_FOUND)
+        val resolvedId = if (catalogId.startsWith(GENRE_PREFIX)) {
+            connection.selectedLibraries.firstNotNullOfOrNull { library ->
+                library.groupedGenres().firstOrNull { group -> group.any { genreCatalogId(library.id, it.id) == catalogId } }
+                    ?.let { genreCatalogId(library.id, it.first().id) }
+            } ?: catalogId
+        } else catalogId
+        val descriptor = addon.catalogs.firstOrNull { it.id == resolvedId } ?: throw ServerException(ServerFailure.NOT_FOUND)
         val row = CatalogRow(
             addonId = addon.id,
             addonName = addon.displayName,
@@ -224,7 +231,7 @@ class ServerCatalog @Inject constructor(
                 name = library.name,
                 extra = listOf(CatalogExtra(name = "skip")) +
                     listOfNotNull(library.groupedGenres().takeIf { it.isNotEmpty() }?.let { genres ->
-                        CatalogExtra(name = "genre", options = genres.map { localizedGenreLabel(context, it.first().name) }.sorted())
+                        CatalogExtra(name = "genre", options = genres.map { genreLabel(it.first().name) }.sorted())
                     }),
                 showInHome = true,
                 hasExplicitShowInHome = true
@@ -234,7 +241,7 @@ class ServerCatalog @Inject constructor(
                     val genre = group.first()
                     catalog.copy(
                         id = genreCatalogId(library.id, genre.id),
-                        name = "${library.name} · ${localizedGenreLabel(context, genre.name)}",
+                        name = "${library.name} · ${genreLabel(genre.name)}",
                         extra = listOf(CatalogExtra(name = "skip"))
                     )
                 }
@@ -266,6 +273,11 @@ class ServerCatalog @Inject constructor(
             resources = listOf(AddonResource(name = "catalog", types = emptyList(), idPrefixes = null))
         )
     }
+
+    private fun genreLabel(name: String): String = localizedGenreLabel(
+        context,
+        if (canonicalServerGenre(name) == "science fiction") "Science Fiction" else name
+    )
 
     private suspend fun resumePage(connection: ServerConnection, skip: Int): Page {
         if (skip > 0) return Page(emptyList(), null)

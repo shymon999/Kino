@@ -2,7 +2,7 @@ package com.nuvio.tv.data.mediaserver
 
 import java.util.Locale
 
-// Keep server IDs intact. Only equivalent genre names share a display row and filter.
+// Keep server IDs intact. Group aliases and the server's combined Sci-Fi label locally.
 fun canonicalServerGenre(name: String): String {
     val key = name.trim().lowercase(Locale.ROOT).replace('-', ' ').replace(Regex("\\s+"), " ")
     return when (key) {
@@ -18,7 +18,9 @@ fun canonicalServerGenre(name: String): String {
         "muzyczny", "muzyczne", "muzyka", "music" -> "music"
         "tajemnica", "mystery" -> "mystery"
         "romans", "romance" -> "romance"
-        "sci fi", "scifi", "science fiction", "science ficiton", "fantastyka naukowa" -> "science fiction"
+        "sci fi", "scifi", "science fiction", "science ficiton", "fantastyka naukowa",
+        "sci fi & fantasy", "sci fi and fantasy", "sci fi i fantasy",
+        "science fiction & fantasy", "science fiction and fantasy", "science fiction i fantasy" -> "science fiction"
         "wojenny", "wojenne", "war" -> "war"
         "biografia", "biograficzny", "biography" -> "biography"
         else -> key
