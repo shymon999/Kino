@@ -1205,7 +1205,23 @@ class StreamScreenViewModel @Inject constructor(
         }
     }
 
+    private var lastPlaybackAttempt: Stream? = null
+
+    fun canRetryPlaybackPreparation(): Boolean = lastPlaybackAttempt != null
+
+    suspend fun retryPlaybackPreparation(): StreamPlaybackInfo? {
+        val stream = lastPlaybackAttempt ?: return null
+        updateUiStateIfChanged { it.copy(showDirectAutoPlayOverlay = true) }
+        return try {
+            resolveStreamForPlayback(stream)
+        } finally {
+            updateUiStateIfChanged { it.copy(showDirectAutoPlayOverlay = false) }
+        }
+    }
+
     suspend fun resolveStreamForPlayback(stream: Stream): StreamPlaybackInfo? {
+        lastPlaybackAttempt = stream
+        updateUiStateIfChanged { it.copy(playbackErrorMessage = null) }
         stream.serverTarget?.let { target -> return prepareServerStream(stream, target) }
         if (stream.youTubeIdToResolve() != null) {
             return resolveYouTubeStreamForPlayback(stream)

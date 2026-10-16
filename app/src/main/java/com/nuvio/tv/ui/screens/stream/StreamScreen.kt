@@ -6,7 +6,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import androidx.activity.compose.BackHandler
-import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -294,12 +293,6 @@ fun StreamScreen(
         }
     }
 
-    LaunchedEffect(uiState.playbackErrorMessage) {
-        val message = uiState.playbackErrorMessage ?: return@LaunchedEffect
-        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
-        viewModel.onPlaybackErrorShown()
-    }
-
     // Once streams are resolved, release the MainActivity auto-next loader so it doesn't
     // mask this screen (whether it auto-launches a player or shows the manual list).
     LaunchedEffect(uiState.isLoading) {
@@ -487,6 +480,25 @@ fun StreamScreen(
                         .fillMaxHeight()
                 )
             }
+        }
+
+        uiState.playbackErrorMessage?.let { message ->
+            PlaybackPreparationErrorDialog(
+                message = message,
+                canRetry = viewModel.canRetryPlaybackPreparation(),
+                onDismiss = viewModel::onPlaybackErrorShown,
+                onRetry = {
+                    viewModel.onPlaybackErrorShown()
+                    scope.coroutineLaunch {
+                        val playbackInfo = viewModel.retryPlaybackPreparation()
+                        if (playbackInfo != null) {
+                            pendingRestoreOnResume = true
+                            routePlayback(playbackInfo)
+                            viewModel.onEvent(StreamScreenEvent.OnAutoPlayConsumed)
+                        }
+                    }
+                }
+            )
         }
 
         // Player choice dialog for "Ask every time" preference
