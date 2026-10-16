@@ -228,7 +228,10 @@ class ServerCatalog @Inject constructor(
             showInHome = true,
             hasExplicitShowInHome = true
         ).takeIf { provider.supports(ServerCapability.USER_STATE_READ) }
-        val catalogs = libraries.flatMap { library ->
+        // Keep these libraries selected for search, but omit their automatic rows.
+        val catalogs = libraries.filterNot {
+            canonicalServerGenre(it.name) in setOf("children", "anime", "bajki")
+        }.flatMap { library ->
             val catalog = CatalogDescriptor(
                 type = library.kind.domainType(),
                 rawType = library.kind.contentType,
@@ -244,7 +247,7 @@ class ServerCatalog @Inject constructor(
             listOf(catalog)
         }
         val genreRows = genreGroups(connection)
-            .filterNot { canonicalServerGenre(it.first().genres.first().name) == "sport" }
+            .filterNot { canonicalServerGenre(it.first().genres.first().name) in setOf("sport", "children", "anime") }
             .map { sources ->
                 val source = sources.first()
                 val library = source.library

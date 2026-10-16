@@ -23,7 +23,7 @@ import org.junit.Test
 
 class ServerCatalogTest {
     @Test
-    fun childrenAndSuspenseAliasesMergeAcrossLibrariesAndResolveOldLinks() = runTest {
+    fun suspenseAliasesMergeAcrossLibrariesAndResolveOldLinks() = runTest {
         val first = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(
             ServerGenre("c1", "Children"), ServerGenre("t1", "Suspense")
         ))
@@ -33,10 +33,40 @@ class ServerCatalogTest {
         val provider = FakeServerProvider()
         val (catalog, _, connection) = catalog(provider, listOf(first, second))
         val rows = catalog.addons.first().single().catalogs.filter { it.id.startsWith("genre:") }
-        assertEquals(2, rows.size)
-        catalog.row(connection.id, ServerCatalog.genreCatalogId(second.id, "c2"))
+        assertEquals(1, rows.size) // Children aliases are intentionally search-only.
         catalog.row(connection.id, ServerCatalog.genreCatalogId(second.id, "t2"))
-        assertEquals(listOf(first.id to "c1", second.id to "c2", first.id to "t1", second.id to "t2"), provider.genreRequests)
+        assertEquals(listOf(first.id to "t1", second.id to "t2"), provider.genreRequests)
+    }
+
+    @Test
+    fun childrenAndAnimeRowsAreHiddenWithoutRemovingLibrariesFromSearch() = runTest {
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(
+            ServerGenre("mk", "Kids"), ServerGenre("ma", "Anime"), ServerGenre("mc", "Comedy")
+        ))
+        val series = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(
+            ServerGenre("sk", "Dla dzieci"), ServerGenre("sc", "Comedy")
+        ))
+        val anime = series.copy(id = "anime", name = "Anime", genres = listOf(ServerGenre("aa", "Anime")))
+        val kids = series.copy(id = "kids", name = "Bajki", genres = listOf(ServerGenre("kc", "Children")))
+        val animeMovies = movies.copy(id = "anime-movies", name = "Anime")
+        val libraries = listOf(movies, series, anime, kids, animeMovies)
+        val provider = FakeServerProvider()
+        val (catalog, repository, connection) = catalog(provider, libraries)
+        val rows = catalog.addons.first().single().catalogs
+        assertFalse(rows.any { it.id in setOf(anime.id, kids.id, animeMovies.id) })
+        val hidden = setOf("mk", "ma", "sk", "aa", "kc")
+        assertFalse(rows.any { row -> libraries.any { library ->
+            hidden.any { row.id == ServerCatalog.genreCatalogId(library.id, it) }
+        } })
+        assertTrue(rows.any { it.id == movies.id })
+        assertTrue(rows.any { it.id == ServerCatalog.genreCatalogId(series.id, "sc") })
+        assertEquals(libraries.map { it.id }, repository.connection(connection.id)!!.selectedLibraries.map { it.id })
+        catalog.page(connection, "search.series", 0, mapOf("search" to "item"))
+        catalog.page(connection, "search.movie", 0, mapOf("search" to "item"))
+        assertEquals(listOf(
+            ServerMediaKind.SERIES to listOf(series.id, anime.id, kids.id),
+            ServerMediaKind.MOVIE to listOf(movies.id, animeMovies.id)
+        ), provider.searches)
     }
 
     @Test
