@@ -193,8 +193,9 @@ private fun StreamInfoContent(data: StreamInfoData) {
     }
 
     // VIDEO section
+    val displayedVideoBitrate = data.videoAverageBitrate ?: data.videoPeakBitrate ?: data.videoBitrate
     val hasVideoInfo = data.videoCodec != null || data.videoWidth != null ||
-        data.videoFrameRate != null || data.videoBitrate != null || data.fileBitrate != null
+        data.videoFrameRate != null || displayedVideoBitrate != null || data.fileBitrate != null
     if (hasVideoInfo) {
         SectionLabel(stringResource(R.string.stream_info_section_video))
         Spacer(modifier = Modifier.height(NuvioTheme.spacing.xs))
@@ -212,16 +213,33 @@ private fun StreamInfoContent(data: StreamInfoData) {
             )
             // A container that declares no track bitrate leaves only the whole file rate, which
             // includes audio and overhead, so it is labelled apart rather than shown as the video rate.
-            if (data.videoBitrate != null) {
+            if (displayedVideoBitrate != null) {
                 InfoItem(
-                    label = stringResource(R.string.stream_info_bitrate),
-                    value = formatBitrate(data.videoBitrate)
+                    label = stringResource(when {
+                        data.videoAverageBitrate != null -> R.string.stream_info_bitrate_average
+                        data.videoPeakBitrate != null -> R.string.stream_info_bitrate_peak
+                        else -> R.string.stream_info_bitrate
+                    }),
+                    value = formatBitrate(displayedVideoBitrate)
                 )
             } else {
                 InfoItem(
                     label = stringResource(R.string.stream_info_bitrate_file),
                     value = data.fileBitrate?.let { formatBitrate(it) }
                 )
+            }
+        }
+        Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))
+    }
+
+    if (data.serverMaxStreamingBitrate != null || data.serverRequestedVideoBitrate != null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(36.dp)) {
+            InfoItem(label = stringResource(R.string.stream_info_bitrate_limit),
+                value = data.serverMaxStreamingBitrate?.let { "%.1f Mbps".format(it / 1_000_000.0) })
+            InfoItem(label = stringResource(R.string.stream_info_bitrate_target),
+                value = data.serverRequestedVideoBitrate?.let { "%.1f Mbps".format(it / 1_000_000.0) })
+            if (data.videoAverageBitrate != null && data.videoPeakBitrate != null) {
+                InfoItem(label = stringResource(R.string.stream_info_bitrate_peak), value = formatBitrate(data.videoPeakBitrate))
             }
         }
         Spacer(modifier = Modifier.height(NuvioTheme.spacing.lg))

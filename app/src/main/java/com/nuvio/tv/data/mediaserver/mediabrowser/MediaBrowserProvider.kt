@@ -32,6 +32,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.serialization.DeserializationStrategy
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 
 internal data class Endpoint(
     val path: String,
@@ -245,6 +247,7 @@ internal abstract class MediaBrowserProvider(
                             "recursive" to "true",
                             "includeItemTypes" to kind.itemType(),
                             "searchTerm" to query,
+                            "enableUserData" to "false".takeIf { deviceLocalWatchState },
                             "limit" to limit.toString(),
                             "fields" to listFields,
                             "imageTypeLimit" to "1",
@@ -260,7 +263,8 @@ internal abstract class MediaBrowserProvider(
     private suspend fun isAioStreams(session: ServerSession): Boolean {
         aioStreamsServers[session.apiRoot]?.let { return it }
         val detected = try {
-            publicInfo(session.connection.address).second.aioStreams != null
+            val marker = publicInfo(session.connection.address).second.aioStreams
+            marker != null && marker != JsonNull && marker != JsonPrimitive(false)
         } catch (error: CancellationException) {
             throw error
         } catch (_: Exception) {
@@ -478,7 +482,9 @@ internal abstract class MediaBrowserProvider(
             playMethod = method,
             audioTracks = audioTracks(source, url, request.audioStreamIndex),
             burnInSubtitles = burnInSubtitles(source, url),
-            transcodeReasons = transcodeReasons(url)
+            transcodeReasons = transcodeReasons(url),
+            maxStreamingBitrate = request.capabilities.maxStreamingBitrate,
+            requestedVideoBitrate = queryValue(url, "VideoBitrate")?.toLongOrNull()?.takeIf { it > 0 }
         )
     }
 

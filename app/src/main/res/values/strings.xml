@@ -1883,6 +1883,10 @@
     <string name="stream_info_resolution">Resolution</string>
     <string name="stream_info_frame_rate">Frame Rate</string>
     <string name="stream_info_bitrate">Bitrate</string>
+    <string name="stream_info_bitrate_average">Bitrate (average)</string>
+    <string name="stream_info_bitrate_peak">Bitrate (peak)</string>
+    <string name="stream_info_bitrate_limit">Requested stream limit</string>
+    <string name="stream_info_bitrate_target">Server video encoding target</string>
     <string name="stream_info_bitrate_file">Bitrate (file)</string>
     <string name="stream_info_hud">HUD</string>
     <string name="stream_info_channels">Channels</string>

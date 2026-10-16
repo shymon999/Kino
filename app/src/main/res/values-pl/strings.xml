@@ -831,6 +831,10 @@
     <string name="stream_info_resolution">Rozdzielczość</string>
     <string name="stream_info_frame_rate">Klatki/s</string>
     <string name="stream_info_bitrate">Bitrate</string>
+    <string name="stream_info_bitrate_average">Bitrate (średni)</string>
+    <string name="stream_info_bitrate_peak">Bitrate (szczytowy)</string>
+    <string name="stream_info_bitrate_limit">Żądany limit strumienia</string>
+    <string name="stream_info_bitrate_target">Cel kodowania wideo serwera</string>
     <string name="stream_info_bitrate_file">Bitrate (plik)</string>
     <string name="stream_info_hud">HUD</string>
     <string name="stream_info_channels">Kanały</string>

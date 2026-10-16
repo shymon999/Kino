@@ -408,5 +408,9 @@ data class StreamInfoData(
     val subtitleLanguage: String? = null,
     val subtitleSource: String? = null,
     val playerEngine: String? = null,
-    val serverPlayback: String? = null
+    val serverPlayback: String? = null,
+    val videoAverageBitrate: Int? = null,
+    val videoPeakBitrate: Int? = null,
+    val serverMaxStreamingBitrate: Long? = null,
+    val serverRequestedVideoBitrate: Long? = null
 )

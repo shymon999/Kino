@@ -1895,7 +1895,13 @@ internal fun PlayerRuntimeController.buildStreamInfoData(): StreamInfoData {
             com.nuvio.tv.data.local.InternalPlayerEngine.MVP_PLAYER -> context.getString(R.string.playback_engine_mvplayer)
             com.nuvio.tv.data.local.InternalPlayerEngine.AUTO -> null
         },
-        serverPlayback = serverPlaybackSummary()
+        serverPlayback = serverPlaybackSummary(),
+        videoAverageBitrate = activeVideoFormat?.averageBitrate?.takeIf { it > 0 }
+            ?: matchedFormat?.averageBitrate?.takeIf { it > 0 },
+        videoPeakBitrate = activeVideoFormat?.peakBitrate?.takeIf { it > 0 }
+            ?: matchedFormat?.peakBitrate?.takeIf { it > 0 },
+        serverMaxStreamingBitrate = serverPlayback.session(currentStreamUrl)?.maxStreamingBitrate,
+        serverRequestedVideoBitrate = serverPlayback.session(currentStreamUrl)?.requestedVideoBitrate
     )
 }
 

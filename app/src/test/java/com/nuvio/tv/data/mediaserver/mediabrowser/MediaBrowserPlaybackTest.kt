@@ -126,6 +126,14 @@ class MediaBrowserPlaybackTest {
     )
 
     @Test
+    fun transcodeDiagnosticsDistinguishRequestedStreamLimitFromServerVideoTarget() {
+        val playback = emby.playbackSession(embySession, request,
+            info("""{"Id":"ms1","TranscodingUrl":"/videos/item1/master.m3u8?VideoBitrate=39808000&AudioBitrate=192000"}"""), "d1")
+        assertEquals(40_000_000L, playback.maxStreamingBitrate)
+        assertEquals(39_808_000L, playback.requestedVideoBitrate)
+    }
+
+    @Test
     fun embyLocalHistorySkipsAccountReadsAndWritesButStopsItsOwnEncoder() = runBlocking {
         val http = TestHttp { """{"PlaySessionId":"own-session","MediaSources":[{"Id":"ms1","TranscodingUrl":"/videos/item1/master.m3u8"}]}""" }
         val provider = EmbyProvider(http.client, testIdentity)

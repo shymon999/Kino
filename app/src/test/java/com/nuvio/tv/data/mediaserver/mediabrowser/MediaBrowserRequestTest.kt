@@ -20,8 +20,54 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.runBlocking
 
 class MediaBrowserRequestTest {
+    @Test
+    fun embyFindsMisrememberedTitleUsingOnlySelectedLibraries() = runBlocking {
+        val http = TestHttp { request ->
+            when {
+                request.url.encodedPath.endsWith("/System/Info/Public") -> """{"Version":"4.10.1.0","aiostreams":false}"""
+                request.url.queryParameter("searchTerm") == "gangsterów" ->
+                    """{"Items":[{"Id":"show1","Name":"Strefa gangsterów","Type":"Series"}]}"""
+                else -> """{"Items":[]}"""
+            }
+        }
+        val emby = EmbyProvider(http.client, testIdentity)
+        val selected = listOf(ServerLibrary("only-this", "Seriale", ServerMediaKind.SERIES))
+        val items = emby.search(session("emby", "https://media.example.com"), ServerMediaKind.SERIES,
+            selected, "Ziemia gangsterów", 30)
+        assertEquals("Strefa gangsterów", items.single().preview.name)
+        assertEquals("show1", ServerItemRef.parse(items.single().preview.id)?.itemId)
+        val queries = http.requests.filter { it.url.encodedPath.endsWith("/Items") }
+        assertEquals(listOf("Ziemia gangsterów", "gangsterów"), queries.map { it.url.queryParameter("searchTerm") })
+        assertTrue(queries.all { it.url.queryParameter("parentId") == "only-this" })
+    }
+
+    @Test
+    fun embyDoesNotRunFallbackWhenFullTitleAlreadyMatches() = runTest {
+        val http = TestHttp { request ->
+            if (request.url.encodedPath.endsWith("/System/Info/Public")) """{"Version":"4.10.1.0"}"""
+            else """{"Items":[{"Id":"show1","Name":"Strefa gangsterów","Type":"Series"}]}"""
+        }
+        EmbyProvider(http.client, testIdentity).search(session("emby", "https://media.example.com"),
+            ServerMediaKind.SERIES, listOf(ServerLibrary("lib1", "Seriale", ServerMediaKind.SERIES)), "Strefa gangsterów", 30)
+        assertEquals(1, http.requests.count { it.url.encodedPath.endsWith("/Items") })
+    }
+
+    @Test
+    fun falseWrapperMarkerDoesNotRemoveLibrarySearchBoundaries() = runTest {
+        val http = TestHttp { request ->
+            if (request.url.encodedPath.endsWith("/System/Info/Public")) """{"Version":"10.10.7","aiostreams":false}"""
+            else """{"Items":[{"Id":"m1","Name":"Heat","Type":"Movie"}]}"""
+        }
+        JellyfinProvider(http.client, testIdentity).search(session("jellyfin", "https://media.example.com/jellyfin"),
+            ServerMediaKind.MOVIE, listOf(ServerLibrary("a", "A", ServerMediaKind.MOVIE),
+                ServerLibrary("b", "B", ServerMediaKind.MOVIE)), "Heat", 30)
+        assertEquals(setOf("a", "b"), http.requests.filter { it.url.encodedPath.endsWith("/Items") }
+            .map { it.url.queryParameter("parentId") }.toSet())
+    }
+
     private fun session(providerId: String, address: String) = ServerSession(
         connection = ServerConnection(
             id = "cabc",

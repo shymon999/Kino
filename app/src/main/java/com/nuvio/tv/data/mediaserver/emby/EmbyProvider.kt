@@ -4,6 +4,13 @@ import com.nuvio.tv.data.mediaserver.mediabrowser.Endpoint
 import com.nuvio.tv.data.mediaserver.mediabrowser.MediaBrowserProvider
 import com.nuvio.tv.data.mediaserver.mediabrowser.PublicInfo
 import com.nuvio.tv.data.mediaserver.mediabrowser.ServerClientIdentity
+import com.nuvio.tv.data.mediaserver.ServerLibrary
+import com.nuvio.tv.data.mediaserver.ServerMediaKind
+import com.nuvio.tv.data.mediaserver.ServerSession
+import com.nuvio.tv.data.mediaserver.ServerTitle
+import com.nuvio.tv.data.mediaserver.fallbackServerSearchTerms
+import com.nuvio.tv.data.mediaserver.serverSearchScore
+import kotlinx.coroutines.withTimeoutOrNull
 import com.nuvio.tv.data.mediaserver.mediabrowser.pathSegment
 import okhttp3.OkHttpClient
 
@@ -16,6 +23,28 @@ internal class EmbyProvider(
     override val minimumVersion: String = "4.7"
     override val deviceLocalWatchState: Boolean get() = true
     override val listFields: String = "${super.listFields},CommunityRating"
+
+    override suspend fun search(
+        session: ServerSession,
+        kind: ServerMediaKind,
+        libraries: List<ServerLibrary>,
+        query: String,
+        limit: Int
+    ): List<ServerTitle> {
+        if (libraries.isEmpty() || limit <= 0) return emptyList()
+        val exact = super.search(session, kind, libraries, query, limit)
+        if (exact.isNotEmpty() || query.length > 160) return exact
+        return withTimeoutOrNull(6_000) {
+            for (term in fallbackServerSearchTerms(query)) {
+                val candidates = super.search(session, kind, libraries, term, limit.coerceAtMost(50))
+                val ranked = candidates.map { it to serverSearchScore(query, it.preview.name) }
+                    .filter { it.second > 0 }.sortedByDescending { it.second }.map { it.first }
+                    .distinctBy { it.preview.id }.take(limit)
+                if (ranked.isNotEmpty()) return@withTimeoutOrNull ranked
+            }
+            emptyList()
+        } ?: emptyList()
+    }
 
     override fun isSupported(info: PublicInfo): Boolean =
         info.productName?.contains("Jellyfin", ignoreCase = true) != true && isSupportedVersion(info.version)
