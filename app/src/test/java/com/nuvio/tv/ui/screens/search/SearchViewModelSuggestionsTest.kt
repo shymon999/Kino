@@ -452,7 +452,10 @@ class SearchViewModelSuggestionsTest {
             watchProgressRepository = watchProgress,
             watchedSeriesStateHolder = watchedSeries,
             posterOptions = mockk<PosterOptionsController>(relaxed = true),
-            serverCatalog = mockk { every { searchAddons } returns flowOf(emptyList()) },
+            serverCatalog = mockk {
+                every { searchAddons } returns flowOf(emptyList())
+                every { posterUpdates } returns kotlinx.coroutines.flow.emptyFlow()
+            },
             context = mockk<Context>(relaxed = true)
         )
     }

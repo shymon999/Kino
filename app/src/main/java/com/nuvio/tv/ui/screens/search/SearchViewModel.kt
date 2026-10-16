@@ -10,6 +10,7 @@ import com.nuvio.tv.data.local.DiscoverSelectionDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.SearchHistoryDataStore
 import com.nuvio.tv.data.mediaserver.ServerCatalog
+import com.nuvio.tv.core.poster.withCustomPosterUrls
 import com.nuvio.tv.domain.model.Addon
 import com.nuvio.tv.domain.model.CatalogDescriptor
 import com.nuvio.tv.domain.model.CatalogRow
@@ -41,6 +42,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.joinAll
@@ -117,7 +119,32 @@ class SearchViewModel @Inject constructor(
         const val MAX_RECENT_SEARCHES = 8
     }
 
+    @OptIn(kotlinx.coroutines.FlowPreview::class)
+    private fun observeServerPosterUpdates() {
+        viewModelScope.launch {
+            serverCatalog.posterUpdates.debounce(150).collect {
+                val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
+                val screens = layoutPreferenceDataStore.customPosterEnabledScreens.first()
+                val searchPattern = com.nuvio.tv.core.poster.patternForScreen(
+                    pattern, com.nuvio.tv.core.poster.CustomPosterScreen.SEARCH, screens
+                )
+                var changed = false
+                catalogsMap.toMap().forEach { (key, row) ->
+                    if (ServerCatalog.isServerAddon(row.addonBaseUrl)) {
+                        val decorated = serverCatalog.cachedPosters(row).let { it.copy(items = it.items.withCustomPosterUrls(searchPattern)) }
+                        if (row != decorated) {
+                            catalogsMap[key] = decorated
+                            changed = true
+                        }
+                    }
+                }
+                if (changed) scheduleCatalogRowsUpdate()
+            }
+        }
+    }
+
     init {
+        observeServerPosterUpdates()
         posterOptions.bind(viewModelScope)
         viewModelScope.launch {
             watchProgressRepository.observeWatchedMovieIds()
