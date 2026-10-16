@@ -205,9 +205,11 @@ internal fun DiscoverSection(
             )
         }
 
-        selectedCatalog?.let { catalog ->
+        selectedCatalog?.takeUnless {
+            com.nuvio.tv.data.mediaserver.ServerCatalog.isServerAddon(it.addonBaseUrl)
+        }?.let { catalog ->
             val metadataSegments = buildList {
-                add(catalog.addonName)
+                if (uiState.catalogAddonNameEnabled) add(catalog.addonName)
                 if (uiState.catalogTypeSuffixEnabled) {
                     localizedTypeLabel(catalog.type)
                         .takeIf { it.isNotEmpty() }
@@ -239,6 +241,8 @@ internal fun DiscoverSection(
                 DiscoverGrid(
                     items = uiState.discoverResults,
                     posterCardStyle = posterCardStyle,
+                    showLabels = uiState.posterLabelsEnabled,
+                    showRatings = uiState.showPosterRatings,
                     watchedMovieIds = watchedMovieIds,
                     watchedSeriesIds = watchedSeriesIds,
                     focusResults = focusResults,
@@ -483,6 +487,8 @@ private data class DiscoverOption(
 internal fun DiscoverGrid(
     items: List<MetaPreview>,
     posterCardStyle: PosterCardStyle,
+    showLabels: Boolean = true,
+    showRatings: Boolean = true,
     watchedMovieIds: Set<String> = emptySet(),
     watchedSeriesIds: Set<String> = emptySet(),
     focusResults: Boolean,
@@ -671,6 +677,8 @@ internal fun DiscoverGrid(
                 onClick = { onItemClick(index, item) },
                 onLongPress = { onItemLongPress(item) },
                 posterCardStyle = adaptiveStyle,
+                showLabel = showLabels,
+                showImdbRatings = showRatings,
                 isWatched = run {
                     val isSeries = item.apiType.equals("series", ignoreCase = true) || item.apiType.equals("tv", ignoreCase = true)
                     if (isSeries) item.id in watchedSeriesIds else item.id in watchedMovieIds

@@ -203,6 +203,11 @@ class SearchViewModel @Inject constructor(
             }
         }
         viewModelScope.launch {
+            layoutPreferenceDataStore.homeImdbRatingsVisibility.collectLatest { visibility ->
+                _uiState.update { it.copy(showPosterRatings = visibility.showRatings) }
+            }
+        }
+        viewModelScope.launch {
             layoutPreferenceDataStore.hideUnreleasedContent.collectLatest { enabled ->
                 hideUnreleasedContent = enabled
                 scheduleCatalogRowsUpdate()

@@ -122,6 +122,7 @@ class SearchViewModelConcurrencyTest {
         every { layoutPreferences.posterCardHeightDp } returns flowOf(189)
         every { layoutPreferences.posterCardCornerRadiusDp } returns flowOf(12)
         every { layoutPreferences.catalogTypeSuffixEnabled } returns flowOf(true)
+        every { layoutPreferences.homeImdbRatingsVisibility } returns flowOf(com.nuvio.tv.domain.model.HomeImdbRatingsVisibility.SHOW_ALL)
         every { layoutPreferences.hideUnreleasedContent } returns flowOf(false)
 
         every { history.recentSearches } returns flowOf(emptyList())
