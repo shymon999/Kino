@@ -12,5 +12,5 @@ val AppTheme.brandWordmarkResource: Int
         AppTheme.ROSE_GOLD -> R.drawable.app_logo_wordmark_rose_gold
         AppTheme.ARCTIC_BLUE -> R.drawable.app_logo_wordmark_arctic_blue
         AppTheme.GRAPHITE -> R.drawable.app_logo_wordmark_graphite
-        else -> R.drawable.app_logo_wordmark
+        else -> R.drawable.app_logo_wordmark_jade
     }
