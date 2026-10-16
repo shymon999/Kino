@@ -23,6 +23,23 @@ import org.junit.Test
 
 class ServerCatalogTest {
     @Test
+    fun childrenAndSuspenseAliasesMergeAcrossLibrariesAndResolveOldLinks() = runTest {
+        val first = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(
+            ServerGenre("c1", "Children"), ServerGenre("t1", "Suspense")
+        ))
+        val second = first.copy(id = "other", genres = listOf(
+            ServerGenre("c2", "Kids"), ServerGenre("t2", "Thriller")
+        ))
+        val provider = FakeServerProvider()
+        val (catalog, _, connection) = catalog(provider, listOf(first, second))
+        val rows = catalog.addons.first().single().catalogs.filter { it.id.startsWith("genre:") }
+        assertEquals(2, rows.size)
+        catalog.row(connection.id, ServerCatalog.genreCatalogId(second.id, "c2"))
+        catalog.row(connection.id, ServerCatalog.genreCatalogId(second.id, "t2"))
+        assertEquals(listOf(first.id to "c1", second.id to "c2", first.id to "t1", second.id to "t2"), provider.genreRequests)
+    }
+
+    @Test
     fun mergedGenrePaginationUsesSourceOffsetsWhenLibrariesHaveDifferentSizes() = runTest {
         val small = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Action")))
         val large = small.copy(id = "large", genres = listOf(ServerGenre("g2", "Akcja")))

@@ -14,6 +14,8 @@ fun canonicalServerGenre(name: String): String {
         "dokument", "dokumentalny", "dokumentalne", "documentary" -> "documentary"
         "dramat", "drama" -> "drama"
         "familijny", "familijne", "rodzinny", "rodzinne", "family" -> "family"
+        "children", "kids", "dzieci", "dziecięcy", "dzieciece", "dziecięce", "dla dzieci" -> "children"
+        "thriller", "thrillery", "suspense", "suspens" -> "thriller"
         "historyczny", "historyczne", "history" -> "history"
         "muzyczny", "muzyczne", "muzyka", "music" -> "music"
         "tajemnica", "mystery" -> "mystery"

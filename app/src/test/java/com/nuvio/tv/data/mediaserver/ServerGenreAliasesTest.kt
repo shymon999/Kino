@@ -15,6 +15,12 @@ class ServerGenreAliasesTest {
         assertEquals(canonicalServerGenre("Action"), canonicalServerGenre("Action & Adventure"))
         assertEquals(canonicalServerGenre("War"), canonicalServerGenre("War & Politics"))
         assertEquals(canonicalServerGenre(" COMEDY "), canonicalServerGenre("Komedia"))
+        listOf("Kids", "Children", "Dla dzieci").forEach {
+            assertEquals("children", canonicalServerGenre(it))
+        }
+        listOf("Suspense", "Suspens", "Thriller").forEach {
+            assertEquals("thriller", canonicalServerGenre(it))
+        }
     }
 
     @Test
