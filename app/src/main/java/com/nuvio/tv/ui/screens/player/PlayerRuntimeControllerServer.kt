@@ -179,7 +179,7 @@ private fun PlayerRuntimeController.restartServerSession(session: ServerPlayback
     currentStreamResponseHeaders = emptyMap()
     streamSubtitles = session.subtitles
     _uiState.update { it.copy(currentStreamUrl = session.url) }
-    scheduleDeferredPlayerReinitialize(fromPositionMs = positionMs)
+    scheduleDeferredPlayerReinitialize(fromPositionMs = positionMs, startPaused = userPausedManually)
 }
 
 private fun PlayerRuntimeController.refreshServerTracks() {

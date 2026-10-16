@@ -943,7 +943,8 @@ internal fun PlayerRuntimeController.handleVc1PlaybackFailure(errorMessage: Stri
 
 internal fun PlayerRuntimeController.scheduleDeferredPlayerReinitialize(
     fromPositionMs: Long,
-    clearResumeProgress: Boolean = false
+    clearResumeProgress: Boolean = false,
+    startPaused: Boolean = false
 ) {
     cancelFirstFrameWatchdog()
     cancelStallWatchdog()
@@ -961,7 +962,7 @@ internal fun PlayerRuntimeController.scheduleDeferredPlayerReinitialize(
         yield()
         runCatching {
             releasePlayer(flushPlaybackState = true, keepTorrentStream = true)
-            initializePlayer(currentStreamUrl, currentHeaders)
+            initializePlayer(currentStreamUrl, currentHeaders, startPaused = startPaused)
         }.onFailure { e ->
             _uiState.update {
                 it.copy(
