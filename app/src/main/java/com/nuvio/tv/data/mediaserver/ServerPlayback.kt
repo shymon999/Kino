@@ -150,7 +150,11 @@ class ServerPlayback internal constructor(
                         when {
                             sent == null -> Log.w(TAG, "Playback report ${event.type} for $label timed out")
                             event.type != ServerPlaybackEventType.PROGRESS -> {
-                                Log.i(TAG, "Playback report ${event.type} for $label sent at ${event.positionMs}ms")
+                                if (provider.deviceLocalWatchState) {
+                                    Log.i(TAG, "Local playback event ${event.type} for $label processed; shared history disabled")
+                                } else {
+                                    Log.i(TAG, "Playback report ${event.type} for $label sent at ${event.positionMs}ms")
+                                }
                             }
                         }
                     } catch (error: CancellationException) {
