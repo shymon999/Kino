@@ -23,6 +23,63 @@ import org.junit.Test
 
 class ServerCatalogTest {
     @Test
+    fun mergedGenrePaginationUsesSourceOffsetsWhenLibrariesHaveDifferentSizes() = runTest {
+        val small = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Action")))
+        val large = small.copy(id = "large", genres = listOf(ServerGenre("g2", "Akcja")))
+        val provider = FakeServerProvider().apply { libraryItemIds[small.id] = listOf("extra0", "extra1") }
+        val (catalog, _, connection) = catalog(provider, listOf(small, large))
+        val first = catalog.row(connection.id, ServerCatalog.genreCatalogId(small.id, "g1"))
+        assertEquals(52, first.items.size)
+        assertEquals(50, first.nextSkip)
+        val second = catalog.page(first, first.nextSkip)
+        val last = catalog.page(second, second.nextSkip)
+        val ids = (first.items + second.items + last.items).map { it.id }
+        assertEquals(122, ids.size)
+        assertEquals(122, ids.toSet().size)
+        assertFalse(last.hasMore)
+    }
+
+    @Test
+    fun failedSourceDoesNotSilentlyProduceIncompleteMergedGenrePage() = runTest {
+        val first = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Action")))
+        val second = first.copy(id = "other", genres = listOf(ServerGenre("g2", "Akcja")))
+        val provider = FakeServerProvider().apply { failingLibraries += second.id }
+        val (catalog, _, connection) = catalog(provider, listOf(first, second))
+        val error = runCatching { catalog.row(connection.id, ServerCatalog.genreCatalogId(first.id, "g1")) }.exceptionOrNull()
+        assertEquals(ServerFailure.UNREACHABLE, error?.serverFailure())
+    }
+
+    @Test
+    fun mergesSameGenreAcrossLibrariesAndKeepsMovieAndSeriesSeparate() = runTest {
+        val series = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Sci-Fi")))
+        val anime = series.copy(id = "anime", name = "Anime", genres = listOf(ServerGenre("g2", "Sci-Fi & Fantasy")))
+        val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g3", "Science Fiction")))
+        val provider = FakeServerProvider()
+        val (catalog, repository, connection) = catalog(provider, listOf(series, anime, movies))
+        val rows = catalog.addons.first().single().catalogs.filter { it.id.startsWith("genre:") }
+        assertEquals(2, rows.size)
+        assertEquals(1, rows.count { it.apiType == "series" })
+        val first = catalog.row(connection.id, ServerCatalog.genreCatalogId(anime.id, "g2"))
+        assertEquals(50, first.items.size) // Fake libraries overlap completely.
+        assertEquals(50, first.nextSkip)
+        val next = catalog.page(first, first.nextSkip)
+        assertEquals("50", ServerItemRef.parse(next.items.first().id)?.itemId)
+        assertEquals(listOf(series.id to "g1", anime.id to "g2", series.id to "g1", anime.id to "g2"), provider.genreRequests)
+        repository.setLibrarySelected(connection.id, anime.id, false)
+        catalog.row(connection.id, ServerCatalog.genreCatalogId(series.id, "g1"))
+        assertEquals(series.id to "g1", provider.genreRequests.last())
+    }
+
+    @Test
+    fun sportStaysInLibraryFiltersWithoutClutteringAutomaticHomeRows() = runTest {
+        val series = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(ServerGenre("sport", "Sport")))
+        val (catalog, _, _) = catalog(libraries = listOf(series))
+        val rows = catalog.addons.first().single().catalogs
+        assertFalse(rows.any { it.id.startsWith("genre:") })
+        assertTrue(rows.single { it.id == series.id }.extra.single { it.name == "genre" }.options.orEmpty().contains("Sport"))
+    }
+
+    @Test
     fun exposesGenreFiltersAndSeparateHomeRowsWithoutDuplicatingDiscovery() = runTest {
         val movies = FakeServerProvider.MOVIE_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
         val series = FakeServerProvider.SERIES_LIBRARY.copy(genres = listOf(ServerGenre("g1", "Komedia")))
@@ -106,6 +163,8 @@ class ServerCatalogTest {
         every { getString(R.string.genre_comedy) } returns "Komedia"
         every { getString(R.string.genre_science_fiction) } returns "Science Fiction"
         every { getString(R.string.genre_family) } returns "Familijny"
+        every { getString(R.string.nav_movies) } returns "Movies"
+        every { getString(R.string.nav_series) } returns "Series"
     }
     private val addonRepository = mockk<AddonRepository> {
         every { getInstalledAddons() } returns installedAddons

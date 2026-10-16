@@ -6,7 +6,7 @@ import java.util.Locale
 fun canonicalServerGenre(name: String): String {
     val key = name.trim().lowercase(Locale.ROOT).replace('-', ' ').replace(Regex("\\s+"), " ")
     return when (key) {
-        "akcja", "action" -> "action"
+        "akcja", "action", "action & adventure", "action and adventure", "akcja i przygoda" -> "action"
         "przygodowy", "przygodowe", "przygoda", "adventure" -> "adventure"
         "animacja", "animowane", "animation" -> "animation"
         "komedia", "komedie", "comedy" -> "comedy"
@@ -18,10 +18,11 @@ fun canonicalServerGenre(name: String): String {
         "muzyczny", "muzyczne", "muzyka", "music" -> "music"
         "tajemnica", "mystery" -> "mystery"
         "romans", "romance" -> "romance"
+        "sport", "sports", "sportowy", "sportowe" -> "sport"
         "sci fi", "scifi", "science fiction", "science ficiton", "fantastyka naukowa",
         "sci fi & fantasy", "sci fi and fantasy", "sci fi i fantasy",
         "science fiction & fantasy", "science fiction and fantasy", "science fiction i fantasy" -> "science fiction"
-        "wojenny", "wojenne", "war" -> "war"
+        "wojenny", "wojenne", "war", "war & politics", "war and politics", "wojna i polityka" -> "war"
         "biografia", "biograficzny", "biography" -> "biography"
         else -> key
     }

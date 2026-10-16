@@ -12,6 +12,8 @@ class ServerGenreAliasesTest {
             .forEach { assertEquals(canonicalServerGenre("Sci-Fi"), canonicalServerGenre(it)) }
         assertEquals(canonicalServerGenre("Family"), canonicalServerGenre("Familijny"))
         assertEquals(canonicalServerGenre("Action"), canonicalServerGenre("Akcja"))
+        assertEquals(canonicalServerGenre("Action"), canonicalServerGenre("Action & Adventure"))
+        assertEquals(canonicalServerGenre("War"), canonicalServerGenre("War & Politics"))
         assertEquals(canonicalServerGenre(" COMEDY "), canonicalServerGenre("Komedia"))
     }
 

@@ -28,8 +28,7 @@ class CatalogRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val api: AddonApi,
     private val layoutPreferenceDataStore: LayoutPreferenceDataStore,
-    private val serverCatalog: ServerCatalog,
-    private val serverPosters: com.nuvio.tv.data.mediaserver.ServerPosterService? = null
+    private val serverCatalog: ServerCatalog
 ) : CatalogRepository {
     companion object {
         private const val TAG = "CatalogRepository"
@@ -61,7 +60,7 @@ class CatalogRepositoryImpl @Inject constructor(
             }
             val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
             val screens = layoutPreferenceDataStore.customPosterEnabledScreens.first()
-            emit(NetworkResult.Success(row.copy(items = (serverPosters?.enrich(row.items) ?: row.items).withCustomPosterUrls(
+            emit(NetworkResult.Success(row.copy(items = row.items.withCustomPosterUrls(
                 com.nuvio.tv.core.poster.patternForScreen(pattern, posterScreen, screens)
             ))))
             return@flow

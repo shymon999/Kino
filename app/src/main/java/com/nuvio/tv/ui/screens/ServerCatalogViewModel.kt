@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.nuvio.tv.data.mediaserver.ServerCatalog
 import com.nuvio.tv.data.mediaserver.ServerItemRef
+import com.nuvio.tv.core.poster.withCustomPosterUrls
+import com.nuvio.tv.data.local.LayoutPreferenceDataStore
+import kotlinx.coroutines.flow.first
 import com.nuvio.tv.domain.model.CatalogRow
 import com.nuvio.tv.domain.model.mergeCatalogPage
 import com.nuvio.tv.domain.model.nextCatalogSkip
@@ -20,7 +23,8 @@ import kotlinx.coroutines.launch
 @HiltViewModel
 class ServerCatalogViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
-    private val serverCatalog: ServerCatalog
+    private val serverCatalog: ServerCatalog,
+    private val layoutPreferences: LayoutPreferenceDataStore
 ) : ViewModel() {
     private val collection = ServerItemRef.parse(savedStateHandle.get<String>("itemId"))
     private val connectionId = savedStateHandle.get<String>("addonId")?.let(ServerCatalog::connectionIdFromAddonId)
@@ -32,6 +36,9 @@ class ServerCatalogViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            serverCatalog.posterUpdates.collect { refreshPosters() }
+        }
+        viewModelScope.launch {
             _row.value = loadOrNull {
                 when {
                     collection != null -> serverCatalog.collectionRow(collection)
@@ -40,6 +47,7 @@ class ServerCatalogViewModel @Inject constructor(
                 }
             }
             _failed.value = _row.value == null
+            refreshPosters()
         }
     }
 
@@ -53,7 +61,18 @@ class ServerCatalogViewModel @Inject constructor(
                 row ?: return@update null
                 page?.let(row::mergeCatalogPage)?.copy(isLoading = false) ?: row.copy(isLoading = false, hasMore = false)
             }
+            refreshPosters()
         }
+    }
+
+    private suspend fun refreshPosters() {
+        val pattern = layoutPreferences.customPosterUrlPattern.first()
+        val screens = layoutPreferences.customPosterEnabledScreens.first()
+        val screen = if (collection != null) com.nuvio.tv.core.poster.CustomPosterScreen.COLLECTIONS
+            else com.nuvio.tv.core.poster.CustomPosterScreen.HOME
+        val selectedPattern = com.nuvio.tv.core.poster.patternForScreen(pattern, screen, screens)
+        _row.update { row -> row?.let { serverCatalog.cachedPosters(it) }
+            ?.let { it.copy(items = it.items.withCustomPosterUrls(selectedPattern)) } }
     }
 
     private suspend fun loadOrNull(block: suspend () -> CatalogRow?): CatalogRow? =

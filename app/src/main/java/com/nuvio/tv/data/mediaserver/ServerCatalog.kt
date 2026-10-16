@@ -46,8 +46,13 @@ internal fun ServerTitle.catalogPreview(addons: List<Addon>): MetaPreview {
 class ServerCatalog @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: ServerRepository,
-    private val addonRepository: AddonRepository
+    private val addonRepository: AddonRepository,
+    private val serverPosters: ServerPosterService? = null
 ) {
+    val posterUpdates: Flow<Long> get() = serverPosters?.updates ?: kotlinx.coroutines.flow.emptyFlow()
+
+    fun cachedPosters(row: CatalogRow): CatalogRow =
+        if (isServerAddon(row.addonBaseUrl)) row.copy(items = serverPosters?.cached(row.items) ?: row.items) else row
     private val libraryRefreshMutex = Mutex()
     private val libraryRefreshTimes = mutableMapOf<String, Long>()
 
@@ -124,6 +129,7 @@ class ServerCatalog @Inject constructor(
         val requestedGenre = genreRow?.second?.first()?.name ?: extraArgs["genre"]?.takeIf { it.isNotBlank() }
         val page = when {
             catalogId == RESUME_ID -> resumePage(connection, skip)
+            genreRow != null -> genrePage(connection, genreRow.first, requestedGenre!!, skip)
             catalogId.startsWith(COLLECTION_PREFIX) -> pageOf(connection, skip) {
                 repository.call(connection.id) { provider, session ->
                     provider.collectionPage(session, catalogId.removePrefix(COLLECTION_PREFIX), skip, PAGE_SIZE)
@@ -155,7 +161,7 @@ class ServerCatalog @Inject constructor(
             catalogName = catalogName,
             type = ContentType.fromString(type),
             rawType = type,
-            items = page.items,
+            items = serverPosters?.cachedAndRequest(page.items) ?: page.items,
             isLoading = false,
             hasMore = page.nextSkip != null,
             currentPage = skip / PAGE_SIZE,
@@ -186,10 +192,9 @@ class ServerCatalog @Inject constructor(
         val connection = repository.connection(connectionId) ?: throw ServerException(ServerFailure.NOT_FOUND)
         val addon = addonFor(connection) ?: throw ServerException(ServerFailure.NOT_FOUND)
         val resolvedId = if (catalogId.startsWith(GENRE_PREFIX)) {
-            connection.selectedLibraries.firstNotNullOfOrNull { library ->
-                library.groupedGenres().firstOrNull { group -> group.any { genreCatalogId(library.id, it.id) == catalogId } }
-                    ?.let { genreCatalogId(library.id, it.first().id) }
-            } ?: catalogId
+            genreGroups(connection).firstOrNull { sources ->
+                sources.any { source -> source.genres.any { genreCatalogId(source.library.id, it.id) == catalogId } }
+            }?.first()?.let { genreCatalogId(it.library.id, it.genres.first().id) } ?: catalogId
         } else catalogId
         val descriptor = addon.catalogs.firstOrNull { it.id == resolvedId } ?: throw ServerException(ServerFailure.NOT_FOUND)
         val row = CatalogRow(
@@ -236,18 +241,25 @@ class ServerCatalog @Inject constructor(
                 showInHome = true,
                 hasExplicitShowInHome = true
             )
-            val genreRows = if (library.kind == ServerMediaKind.MOVIE || library.kind == ServerMediaKind.SERIES) {
-                library.groupedGenres().map { group ->
-                    val genre = group.first()
-                    catalog.copy(
-                        id = genreCatalogId(library.id, genre.id),
-                        name = "${library.name} · ${genreLabel(genre.name)}",
-                        extra = listOf(CatalogExtra(name = "skip"))
-                    )
-                }
-            } else emptyList()
-            listOf(catalog) + genreRows
+            listOf(catalog)
         }
+        val genreRows = genreGroups(connection)
+            .filterNot { canonicalServerGenre(it.first().genres.first().name) == "sport" }
+            .map { sources ->
+                val source = sources.first()
+                val library = source.library
+                val genre = source.genres.first()
+                val sectionName = if (sources.size == 1) library.name else context.getString(
+                    if (library.kind == ServerMediaKind.SERIES) R.string.nav_series else R.string.nav_movies
+                )
+                CatalogDescriptor(
+                    type = library.kind.domainType(), rawType = library.kind.contentType,
+                    id = genreCatalogId(library.id, genre.id),
+                    name = "$sectionName · ${genreLabel(genre.name)}",
+                    extra = listOf(CatalogExtra(name = "skip")),
+                    showInHome = true, hasExplicitShowInHome = true
+                )
+            }
         val searches = SEARCH_KINDS
             .filter { kind -> provider.supports(ServerCapability.SEARCH) && libraries.any { it.holds(kind) } }
             .map { kind ->
@@ -268,7 +280,7 @@ class ServerCatalog @Inject constructor(
             description = null,
             logo = null,
             baseUrl = baseUrl(connection.id),
-            catalogs = listOfNotNull(resume) + catalogs + searches,
+            catalogs = listOfNotNull(resume) + catalogs + genreRows + searches,
             types = listOf(ContentType.MOVIE, ContentType.SERIES),
             resources = listOf(AddonResource(name = "catalog", types = emptyList(), idPrefixes = null))
         )
@@ -278,6 +290,33 @@ class ServerCatalog @Inject constructor(
         context,
         if (canonicalServerGenre(name) == "science fiction") "Science Fiction" else name
     )
+
+    private data class GenreSource(val library: ServerLibrary, val genres: List<ServerGenre>)
+
+    private fun genreGroups(connection: ServerConnection): List<List<GenreSource>> =
+        connection.selectedLibraries.filter { it.kind == ServerMediaKind.MOVIE || it.kind == ServerMediaKind.SERIES }
+            .flatMap { library -> library.groupedGenres().map { GenreSource(library, it) } }
+            .groupBy { it.library.kind to canonicalServerGenre(it.genres.first().name) }.values.toList()
+
+    private suspend fun genrePage(connection: ServerConnection, library: ServerLibrary, name: String, skip: Int): Page {
+        val sources = genreGroups(connection).firstOrNull { group ->
+            group.first().library.kind == library.kind &&
+                canonicalServerGenre(group.first().genres.first().name) == canonicalServerGenre(name)
+        } ?: throw ServerException(ServerFailure.NOT_FOUND)
+        // Each step advances the same offset in every source library. Never use
+        // the combined item count as a library offset or later titles get skipped.
+        val pages = sources.map { source ->
+            pageOf(connection, skip) {
+                repository.call(connection.id) { provider, session ->
+                    provider.libraryPage(session, source.library, skip, PAGE_SIZE, source.genres.joinToString(",") { it.id })
+                }
+            }
+        }
+        return Page(
+            pages.flatMap { it.items }.distinctBy { "${it.apiType}:${it.id}" },
+            (skip + PAGE_SIZE).takeIf { pages.any { it.nextSkip != null } }
+        )
+    }
 
     private suspend fun resumePage(connection: ServerConnection, skip: Int): Page {
         if (skip > 0) return Page(emptyList(), null)

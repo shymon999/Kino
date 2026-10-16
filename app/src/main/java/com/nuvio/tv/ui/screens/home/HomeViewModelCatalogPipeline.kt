@@ -32,6 +32,7 @@ import com.nuvio.tv.domain.model.PLACEHOLDER_IMAGE_URL
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withPermit
 import com.nuvio.tv.core.util.filterReleasedItems
+import com.nuvio.tv.core.poster.withCustomPosterUrls
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 
@@ -41,6 +42,31 @@ private data class CatalogUpdateResult(
     val gridItems: List<GridItem>,
     val fullRows: List<CatalogRow>
 )
+
+@OptIn(FlowPreview::class)
+internal fun HomeViewModel.observeServerPostersPipeline() {
+    viewModelScope.launch {
+        serverCatalog.posterUpdates.debounce(150).collect {
+            val pattern = layoutPreferenceDataStore.customPosterUrlPattern.first()
+            val screens = layoutPreferenceDataStore.customPosterEnabledScreens.first()
+            val homePattern = com.nuvio.tv.core.poster.patternForScreen(
+                pattern, com.nuvio.tv.core.poster.CustomPosterScreen.HOME, screens
+            )
+            var changed = false
+            val (_, rows) = snapshotCatalogState()
+            rows.forEach { (key, row) ->
+                val decorated = serverCatalog.cachedPosters(row).let { it.copy(items = it.items.withCustomPosterUrls(homePattern)) }
+                if (decorated != row) {
+                    updateCatalogRow(key) { latest ->
+                        serverCatalog.cachedPosters(latest).let { it.copy(items = it.items.withCustomPosterUrls(homePattern)) }
+                    }
+                    changed = true
+                }
+            }
+            if (changed) scheduleUpdateCatalogRows()
+        }
+    }
+}
 
 @OptIn(FlowPreview::class)
 internal fun HomeViewModel.observeCollectionsPipeline() {
