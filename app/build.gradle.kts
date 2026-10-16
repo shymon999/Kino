@@ -25,7 +25,8 @@ fun resolveProperty(dev: Properties, local: Properties, key: String, fallback: S
 }
 
 fun buildConfigString(value: String): String {
-    return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"") + "\""
+    return "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"")
+        .replace("\r", "\\r").replace("\n", "\\n") + "\""
 }
 
 fun cmakePath(path: String): String {
@@ -47,6 +48,23 @@ val devProperties = Properties().apply {
     if (devPropertiesFile.exists()) {
         load(devPropertiesFile.inputStream())
     }
+}
+
+// Private provisioning is loaded only from outside the checkout and only embedded
+// in the family distribution. Never log these values or include them in full.
+val familyProperties = Properties().apply {
+    val privateFile = rootProject.file("../klucz/rodzina.properties")
+    if (privateFile.exists()) {
+        privateFile.readText(Charsets.UTF_8).removePrefix("\uFEFF").reader().use { load(it) }
+    }
+}
+if (gradle.startParameter.taskNames.any {
+        it.contains("Family", ignoreCase = true) &&
+            listOf("assemble", "bundle", "package").any { action -> it.contains(action, ignoreCase = true) }
+    }) {
+    require(listOf("EMBY_SERVER_URL", "EMBY_USERNAME", "EMBY_PASSWORD").all {
+        !familyProperties.getProperty(it).isNullOrBlank()
+    }) { "Family build requires complete ../klucz/rodzina.properties" }
 }
 
 val enableDoviNative = parseBooleanProperty(
@@ -81,6 +99,10 @@ fun truthy(value: String?): Boolean {
 }
 
 val buildingAppBundle = gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
+val embyTargetAbi = providers.gradleProperty("embyAbi").orNull
+require(embyTargetAbi == null || embyTargetAbi in listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) {
+    "Unsupported embyAbi"
+}
 val useDebugReleaseSigning = env("CI_USE_DEBUG_SIGNING").equals("true", ignoreCase = true)
 val useLocalFfmpegDecoder = truthy(
     providers.gradleProperty("useLocalFfmpegDecoder").orNull
@@ -121,7 +143,13 @@ android {
         buildConfigField("String", "SIMKL_CLIENT_ID", buildConfigString(resolveProperty(devProperties, localProperties, "SIMKL_CLIENT_ID")))
         buildConfigField("String", "SIMKL_APP_NAME", buildConfigString(resolveProperty(devProperties, localProperties, "SIMKL_APP_NAME", "nuvio")))
         buildConfigField("String", "MDBLIST_CLIENT_ID", buildConfigString(resolveProperty(devProperties, localProperties, "MDBLIST_CLIENT_ID")))
-        buildConfigField("String", "TMDB_API_KEY", "\"${localProperties.getProperty("TMDB_API_KEY", "")}\"")
+        buildConfigField("String", "TMDB_API_KEY", "\"\"")
+        buildConfigField("boolean", "FAMILY_BUILD", "false")
+        buildConfigField("String", "FAMILY_EMBY_URL", "\"\"")
+        buildConfigField("String", "FAMILY_EMBY_USERNAME", "\"\"")
+        buildConfigField("String", "FAMILY_EMBY_PASSWORD", "\"\"")
+        manifestPlaceholders["nuvioAppScheme"] = "nuvio-emby"
+        manifestPlaceholders["stremioAppScheme"] = "stremio-emby"
         buildConfigField("String", "TV_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("TV_LOGIN_WEB_BASE_URL", "https://nuvio.tv/tv-login")}\"")
         buildConfigField("String", "DEVICE_LOGIN_WEB_BASE_URL", "\"${localProperties.getProperty("DEVICE_LOGIN_WEB_BASE_URL", "https://nuvio.tv/link")}\"")
         buildConfigField("boolean", "DOVI_NATIVE_ENABLED", enableDoviNative.toString())
@@ -172,6 +200,24 @@ android {
             buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "false")
+        }
+        create("family") {
+            dimension = "distribution"
+            applicationId = "com.nuvio.tv.emby.family"
+            versionNameSuffix = "-rodzina"
+            buildConfigField("boolean", "FAMILY_BUILD", "true")
+            buildConfigField("String", "FAMILY_EMBY_URL", buildConfigString(familyProperties.getProperty("EMBY_SERVER_URL", "")))
+            buildConfigField("String", "FAMILY_EMBY_USERNAME", buildConfigString(familyProperties.getProperty("EMBY_USERNAME", "")))
+            buildConfigField("String", "FAMILY_EMBY_PASSWORD", buildConfigString(familyProperties.getProperty("EMBY_PASSWORD", "")))
+            buildConfigField("String", "TMDB_API_KEY", buildConfigString(localProperties.getProperty("TMDB_API_KEY", "")))
+            manifestPlaceholders["nuvioAppScheme"] = "nuvio-emby-family"
+            manifestPlaceholders["stremioAppScheme"] = "stremio-emby-family"
+            buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_EXTERNAL_TRAILERS_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_EXTERNAL_PLAYBACK_KEEP_ALIVE_ENABLED", "false")
+            buildConfigField("boolean", "FEATURE_CUSTOM_SERVER_CONNECTIONS_ENABLED", "true")
         }
     }
 
@@ -276,8 +322,8 @@ android {
         abi {
             isEnable = !buildingAppBundle
             reset()
-            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
-            isUniversalApk = true
+            include(*(embyTargetAbi?.let { listOf(it) } ?: listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")).toTypedArray())
+            isUniversalApk = embyTargetAbi == null
         }
     }
 
@@ -306,6 +352,7 @@ android {
     }
 
     sourceSets {
+        getByName("family") { java.srcDir("src/full/java") }
         getByName("main") {
             jniLibs.srcDirs("src/main/jniLibs")
         }
@@ -336,8 +383,17 @@ android {
 androidComponents {
     onVariants(selector().withBuildType("debug")) { variant ->
         val isPlaystore = variant.productFlavors.any { it.second == "playstore" }
-        variant.applicationId.set(if (isPlaystore) "com.nuvio.tv.emby.playstore.debug" else "com.nuvio.tv.emby.debug")
+        val isFamily = variant.productFlavors.any { it.second == "family" }
+        variant.applicationId.set(when {
+            isFamily -> "com.nuvio.tv.emby.family.debug"
+            isPlaystore -> "com.nuvio.tv.emby.playstore.debug"
+            else -> "com.nuvio.tv.emby.debug"
+        })
     }
+}
+
+configurations.named("familyImplementation") {
+    extendsFrom(configurations.getByName("fullImplementation"))
 }
 
 afterEvaluate {

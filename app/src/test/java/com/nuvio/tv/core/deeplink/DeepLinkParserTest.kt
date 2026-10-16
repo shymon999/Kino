@@ -7,6 +7,14 @@ import org.junit.Test
 
 class DeepLinkParserTest {
     @Test
+    fun familySchemesUseTheSameParserWithoutClaimingTheUniversalScheme() {
+        assertEquals(AppDeepLink.Meta(type = "movie", id = "tt0111161"),
+            DeepLinkParser.parse("nuvio-emby-family://movie/tt0111161"))
+        assertEquals(AppDeepLink.AddonInstall("https://addon.example/manifest.json"),
+            DeepLinkParser.parse("stremio-emby-family://addon.example/manifest.json"))
+    }
+
+    @Test
     fun parsesMetaQueryDeepLink() {
         assertEquals(
             AppDeepLink.Meta(type = "series", id = "tt0944947"),

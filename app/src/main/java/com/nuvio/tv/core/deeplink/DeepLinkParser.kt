@@ -8,7 +8,7 @@ object DeepLinkParser {
     fun parse(url: String): AppDeepLink? {
         val parsedUrl = runCatching { URI(url.trim()) }.getOrNull() ?: return null
         val scheme = parsedUrl.scheme?.lowercase().orEmpty()
-        if (scheme == "stremio-emby" || scheme == "stremio") {
+        if (scheme in setOf("stremio-emby", "stremio-emby-family", "stremio")) {
             val host = parsedUrl.host?.lowercase().orEmpty()
             return if (looksLikeAddonHost(host)) {
                 customSchemeToHttpsUrl(url, scheme)?.let(AppDeepLink::AddonInstall)
@@ -16,7 +16,7 @@ object DeepLinkParser {
                 null
             }
         }
-        if (scheme != "nuvio-emby" && scheme != "nuvio") return null
+        if (scheme !in setOf("nuvio-emby", "nuvio-emby-family", "nuvio")) return null
 
         val host = parsedUrl.host?.lowercase().orEmpty()
         val pathSegments = parsedUrl.rawPath
