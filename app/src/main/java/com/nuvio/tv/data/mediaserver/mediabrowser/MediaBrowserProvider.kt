@@ -44,7 +44,11 @@ internal abstract class MediaBrowserProvider(
     http: OkHttpClient,
     identity: ServerClientIdentity
 ) : ServerProvider {
-    override val capabilities: Set<ServerCapability> = ServerCapability.entries.toSet()
+    override val capabilities: Set<ServerCapability>
+        get() = ServerCapability.entries.toSet().let { capabilities ->
+            if (deviceLocalWatchState) capabilities - setOf(ServerCapability.USER_STATE_READ, ServerCapability.USER_STATE_WRITE)
+            else capabilities
+        }
 
     private val client = MediaBrowserClient(authorizationHeader, http, identity)
     private val aioStreamsServers = ConcurrentHashMap<String, Boolean>()
@@ -267,6 +271,7 @@ internal abstract class MediaBrowserProvider(
     }
 
     override suspend fun resumeItems(session: ServerSession, limit: Int): List<ServerTitle> {
+        if (deviceLocalWatchState) return emptyList()
         val result = get(
             session,
             resumeEndpoint(session.userId),
@@ -299,7 +304,7 @@ internal abstract class MediaBrowserProvider(
                 mapOf(
                     "userId" to session.userId,
                     "fields" to "Overview,ProviderIds",
-                    "enableUserData" to "true"
+                    "enableUserData" to (!deviceLocalWatchState).toString()
                 )
             ).items
         } else {
@@ -309,7 +314,8 @@ internal abstract class MediaBrowserProvider(
         return ServerItemDetails(
             meta = mapper.details(item, episodes),
             externalIds = item.externalIds(),
-            userStates = (if (episodes.isEmpty()) listOf(item) else episodes).mapNotNull(mapper::userState)
+            userStates = if (deviceLocalWatchState) emptyList()
+                else (if (episodes.isEmpty()) listOf(item) else episodes).mapNotNull(mapper::userState)
         )
     }
 
@@ -317,6 +323,7 @@ internal abstract class MediaBrowserProvider(
         mapper(session).candidates(item(session, itemId, "MediaSources"))
 
     override suspend fun setPlayed(session: ServerSession, itemId: String, played: Boolean) {
+        if (deviceLocalWatchState) return
         val endpoint = playedEndpoint(session.userId, itemId)
         client.execute(
             method = if (played) "POST" else "DELETE",
@@ -512,6 +519,20 @@ internal abstract class MediaBrowserProvider(
         playback: ServerPlaybackSession,
         event: ServerPlaybackEvent
     ) {
+        if (deviceLocalWatchState) {
+            // Stop only this playback's encoder without updating shared account history.
+            if (event.type == ServerPlaybackEventType.STOP && playback.playMethod != ServerPlayMethod.DIRECT_PLAY) {
+                val playSessionId = playback.playSessionId?.takeIf { it.isNotBlank() } ?: return
+                client.execute(
+                    method = "DELETE",
+                    baseUrl = session.apiRoot,
+                    path = "/Videos/ActiveEncodings",
+                    token = session.token,
+                    query = mapOf("DeviceId" to client.deviceId, "PlaySessionId" to playSessionId)
+                )
+            }
+            return
+        }
         val path = when (event.type) {
             ServerPlaybackEventType.START -> "/Sessions/Playing"
             ServerPlaybackEventType.STOP -> "/Sessions/Playing/Stopped"
@@ -551,7 +572,10 @@ internal abstract class MediaBrowserProvider(
     }
 
     private suspend fun item(session: ServerSession, itemId: String, fields: String): BaseItem =
-        get(session, itemEndpoint(session.userId, itemId), BaseItem.serializer(), mapOf("fields" to fields))
+        get(session, itemEndpoint(session.userId, itemId), BaseItem.serializer(), mapOf(
+            "fields" to fields,
+            "enableUserData" to "false".takeIf { deviceLocalWatchState }
+        ))
 
     private suspend fun <T> get(
         session: ServerSession,
@@ -567,6 +591,7 @@ internal abstract class MediaBrowserProvider(
         "recursive" to (library.kind != ServerMediaKind.COLLECTION).toString(),
         "includeItemTypes" to library.kind.itemType().takeUnless { library.kind == ServerMediaKind.COLLECTION },
         "fields" to listFields,
+        "enableUserData" to "false".takeIf { deviceLocalWatchState },
         "imageTypeLimit" to "1",
         "enableImageTypes" to "Primary,Backdrop,Logo"
     )

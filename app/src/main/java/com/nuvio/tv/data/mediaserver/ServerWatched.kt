@@ -69,7 +69,9 @@ class ServerWatched internal constructor(
     }
 
     fun mirror(marks: List<ServerWatchMark>, played: Boolean): Job? {
-        val connections = repository.enabledConnections().filter { it.useCatalogMetadata }
+        val connections = repository.enabledConnections().filter {
+            it.useCatalogMetadata && repository.provider(it)?.deviceLocalWatchState != true
+        }
         val catalogMarks = marks.filterNot { ServerItemRef.isServerId(it.contentId) }
         if (connections.isEmpty() || catalogMarks.isEmpty()) return null
         return scope.launch {
@@ -130,6 +132,7 @@ class ServerWatched internal constructor(
     private suspend fun setPlayed(ref: ServerItemRef, played: Boolean): Boolean =
         try {
             repository.call(ref.connectionId) { provider, session ->
+                if (provider.deviceLocalWatchState) return@call
                 if (!provider.supports(ServerCapability.USER_STATE_WRITE)) throw ServerException(ServerFailure.UNSUPPORTED)
                 provider.setPlayed(session, ref.itemId, played)
             }

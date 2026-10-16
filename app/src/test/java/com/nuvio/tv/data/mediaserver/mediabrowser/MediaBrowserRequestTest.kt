@@ -184,10 +184,7 @@ class MediaBrowserRequestTest {
         assertEquals(listOf(ServerLibrary("lib1", "Movies", ServerMediaKind.MOVIE)), libraries)
         assertEquals(
             listOf(
-                "GET https://media.example.com/emby/Users/u1/Views",
-                "GET https://media.example.com/emby/Users/u1/Items/Resume",
-                "POST https://media.example.com/emby/Users/u1/PlayedItems/i1",
-                "DELETE https://media.example.com/emby/Users/u1/PlayedItems/i1"
+                "GET https://media.example.com/emby/Users/u1/Views"
             ),
             http.requests.map { "${it.method} ${it.url.toString().substringBefore('?')}" }
         )
@@ -262,7 +259,7 @@ class MediaBrowserRequestTest {
     }
 
     @Test
-    fun embyPreparesAndReportsPlaybackThroughApiRoot() = runTest {
+    fun embyPreparesPlaybackWithoutReportingSharedAccountProgress() = runTest {
         val http = TestHttp { request ->
             if (request.url.encodedPath.endsWith("/PlaybackInfo")) {
                 """{"PlaySessionId": "ps1", "MediaSources": [{"Id": "ms1", "SupportsDirectPlay": true}]}"""
@@ -292,10 +289,6 @@ class MediaBrowserRequestTest {
         assertTrue(info.text.contains("{\"Format\":\"subrip\",\"Method\":\"Embed\"}"))
         assertTrue(info.text.contains("{\"Format\":\"subrip\",\"Method\":\"External\"}"))
         assertTrue(playback.url.startsWith("https://media.example.com/emby/Videos/i1/stream?static=true"))
-        val report = http.requests[1]
-        assertEquals("/emby/Sessions/Playing/Progress", report.url.encodedPath)
-        assertTrue(report.text.contains("\"PositionTicks\":15000000"))
-        assertTrue(report.text.contains("\"EventName\":\"TimeUpdate\""))
-        assertTrue(report.text.contains("\"PlaySessionId\":\"ps1\""))
+        assertEquals(1, http.requests.size)
     }
 }

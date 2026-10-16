@@ -15,6 +15,7 @@ interface ServerProvider {
     val displayName: String
     val capabilities: Set<ServerCapability>
     val minimumVersion: String
+    val deviceLocalWatchState: Boolean get() = false
 
     suspend fun signIn(address: String, username: String, password: String): ServerSignIn = unsupported()
 

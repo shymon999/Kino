@@ -47,6 +47,7 @@ class ServerUserStateProjection @Inject constructor(
         val meta = details.meta
         val ref = ServerItemRef.parse(meta.id) ?: return
         val connection = repository.connection(ref.connectionId)?.takeIf { it.importWatchState } ?: return
+        if (repository.provider(connection)?.deviceLocalWatchState == true) return
         val isSeries = meta.type == ContentType.SERIES
         val profileId = profileManager.activeProfileId.value
 

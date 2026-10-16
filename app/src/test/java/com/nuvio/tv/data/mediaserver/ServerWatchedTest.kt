@@ -22,6 +22,18 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerWatchedTest {
+    @Test
+    fun localHistoryNeverWritesNativeOrMatchedWatchedStateToServer() = runBlocking {
+        val harness = harness(FakeServerProvider(deviceLocalWatchState = true))
+        harness.repository.setCatalogMetadata(harness.connection.id, true)
+        val native = movie(ServerItemRef(harness.connection.id, "7").encode())
+        harness.watched.apply(listOf(native), played = true) { error("Local mark must not roll back") }!!.join()
+        harness.watched.apply(listOf(native), played = false) { error("Local mark must not roll back") }!!.join()
+        assertNull(harness.watched.mirror(listOf(movie("tt0111161")), played = true))
+        assertTrue(harness.provider.playedChanges.isEmpty())
+        assertEquals(0, failureNotices)
+    }
+
     private var failureNotices = 0
 
     private class Harness(

@@ -9,6 +9,8 @@ import com.nuvio.tv.data.mediaserver.ServerItemRef
 import com.nuvio.tv.data.mediaserver.ServerPlayMethod
 import com.nuvio.tv.data.mediaserver.ServerPlaybackRequest
 import com.nuvio.tv.data.mediaserver.ServerPlaybackTarget
+import com.nuvio.tv.data.mediaserver.ServerPlaybackEvent
+import com.nuvio.tv.data.mediaserver.ServerPlaybackEventType
 import com.nuvio.tv.data.mediaserver.ServerPlayerCapabilities
 import com.nuvio.tv.data.mediaserver.ServerSession
 import com.nuvio.tv.data.mediaserver.readableTranscodeReason
@@ -122,6 +124,44 @@ class MediaBrowserPlaybackTest {
         connection = session.connection.copy(providerId = "emby", address = "https://media.example.com"),
         token = "secret"
     )
+
+    @Test
+    fun embyLocalHistorySkipsAccountReadsAndWritesButStopsItsOwnEncoder() = runBlocking {
+        val http = TestHttp { """{"PlaySessionId":"own-session","MediaSources":[{"Id":"ms1","TranscodingUrl":"/videos/item1/master.m3u8"}]}""" }
+        val provider = EmbyProvider(http.client, testIdentity)
+        val playback = provider.preparePlayback(embySession, request)
+        assertTrue(provider.resumeItems(embySession, 50).isEmpty())
+        provider.setPlayed(embySession, "item1", true)
+        provider.setPlayed(embySession, "item1", false)
+        ServerPlaybackEventType.entries.forEach { type ->
+            provider.report(embySession, playback, ServerPlaybackEvent(type, positionMs = 30_000, isPaused = false))
+        }
+        assertEquals(2, http.requests.size)
+        val stop = http.requests.last()
+        assertEquals("DELETE", stop.method)
+        assertEquals("/emby/Videos/ActiveEncodings", stop.url.encodedPath)
+        assertEquals("device-1", stop.url.queryParameter("DeviceId"))
+        assertEquals("own-session", stop.url.queryParameter("PlaySessionId"))
+    }
+
+    @Test
+    fun localStopWithoutPlaybackSessionNeverStopsOtherDeviceEncoders() = runBlocking {
+        val http = TestHttp()
+        val provider = EmbyProvider(http.client, testIdentity)
+        val missingSession = json.decodeFromString(PlaybackInfoResult.serializer(),
+            """{"MediaSources":[{"Id":"ms1","TranscodingUrl":"/videos/item1/master.m3u8"}]}""")
+        val withoutId = provider.playbackSession(embySession, request, missingSession, "device-1")
+        provider.report(embySession, withoutId, ServerPlaybackEvent(ServerPlaybackEventType.STOP, 0, true))
+        assertTrue(http.requests.isEmpty())
+    }
+
+    @Test
+    fun embyDetailsIgnoreSharedUserDataEvenIfReturnedByServer() = runBlocking {
+        val http = TestHttp { """{"Id":"item1","Name":"Movie","Type":"Movie","RunTimeTicks":600000000,"UserData":{"Played":false,"PlaybackPositionTicks":300000000,"LastPlayedDate":"2026-10-15T12:00:00Z"}}""" }
+        val details = EmbyProvider(http.client, testIdentity).details(embySession, "item1")
+        assertTrue(details.userStates.isEmpty())
+        assertEquals("Movie", details.meta.name)
+    }
 
     @Test
     fun embyStreamsThroughApiRoot() {

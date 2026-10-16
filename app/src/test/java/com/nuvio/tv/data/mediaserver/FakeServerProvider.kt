@@ -10,7 +10,8 @@ import kotlinx.coroutines.Dispatchers
 
 internal class FakeServerProvider(
     private val movieCount: Int = 120,
-    private val transcodes: Boolean = false
+    private val transcodes: Boolean = false,
+    override val deviceLocalWatchState: Boolean = false
 ) : ServerProvider {
     override val id: String = "fake"
     override val displayName: String = "Fake"

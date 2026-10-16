@@ -79,6 +79,7 @@ class ServerPlayback internal constructor(
 
     suspend fun resumeState(url: String?): ServerUserState? {
         val current = url?.let { synchronized(lock) { active[it] } } ?: return null
+        if (current.provider.deviceLocalWatchState) return null
         return current.provider.details(current.session, current.playback.target.item.itemId).userStates.firstOrNull()
     }
 
