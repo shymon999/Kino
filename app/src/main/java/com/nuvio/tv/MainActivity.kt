@@ -311,6 +311,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var appOnboardingDataStore: AppOnboardingDataStore
 
     @Inject
+    lateinit var familyBootstrap: com.nuvio.tv.data.mediaserver.FamilyBootstrap
+
+    @Inject
     lateinit var avatarRepository: AvatarRepository
 
     @Inject
@@ -408,6 +411,7 @@ open class MainActivity : ComponentActivity() {
             }
             val hasSeenAuthQrOnFirstLaunch by hasSeenAuthQrFlow.collectAsState(initial = null)
             val authState by authManager.authState.collectAsState()
+            val familySetup by familyBootstrap.state.collectAsState()
             val context = LocalContext.current
 
             LaunchedEffect(authSessionNoticeDataStore, context) {
@@ -733,7 +737,12 @@ open class MainActivity : ComponentActivity() {
                     val surfaceContentReady = hasSeenAuthQrOnFirstLaunch != null &&
                         authState !is AuthState.Loading
 
-                    if (!surfaceContentReady) {
+                    if (BuildConfig.FAMILY_BUILD && (familySetup.loading || familySetup.failure != null)) {
+                        startupDestination = StartupDestination.Setup
+                        com.nuvio.tv.ui.screens.account.FamilySetupScreen(
+                            state = familySetup, onRetry = familyBootstrap::start
+                        )
+                    } else if (!surfaceContentReady) {
                         // Still loading auth state; nothing to show yet.
                     } else if (
                         hasSeenAuthQrOnFirstLaunch == false &&

@@ -1,0 +1,8 @@
+<resources>
+    <string name="family_setup_title">Nuvio Emby Rodzina</string>
+    <string name="family_setup_loading">Łączę z biblioteką filmów. Pierwsze uruchomienie może chwilę potrwać.</string>
+    <string name="family_setup_connection_error">Serwer jest niedostępny. Sprawdź, czy telewizor ma dostęp do internetu, i spróbuj ponownie.</string>
+    <string name="family_setup_auth_error">Serwer nie zaakceptował zapisanego konta. Poproś osobę, która przygotowała aplikację, o sprawdzenie danych logowania.</string>
+    <string name="family_setup_configuration_error">W tej wersji rodzinnej brakuje konfiguracji. Poproś o nową paczkę instalacyjną.</string>
+    <string name="family_setup_retry">Spróbuj ponownie</string>
+</resources>

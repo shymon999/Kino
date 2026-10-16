@@ -1,0 +1,8 @@
+<resources>
+    <string name="family_setup_title">Nuvio Emby Family</string>
+    <string name="family_setup_loading">Connecting to your film library. The first start may take a moment.</string>
+    <string name="family_setup_connection_error">The server is unavailable. Check that the TV has internet access, then try again.</string>
+    <string name="family_setup_auth_error">The server did not accept the saved account. Ask the person who prepared this app to check its login details.</string>
+    <string name="family_setup_configuration_error">This family app is missing its setup. Ask for a new installation package.</string>
+    <string name="family_setup_retry">Try again</string>
+</resources>

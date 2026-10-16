@@ -50,6 +50,7 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
     @Inject lateinit var simklAnimeIdPreferenceHolder: SimklAnimeIdPreferenceHolder
     @Inject lateinit var serverUserStateProjection: ServerUserStateProjection
     @Inject lateinit var serverMatcher: ServerMatcher
+    @Inject lateinit var familyBootstrap: com.nuvio.tv.data.mediaserver.FamilyBootstrap
 
     companion object {
         /**
@@ -88,11 +89,15 @@ class NuvioApplication : Application(), SingletonImageLoader.Factory {
         androidTvChannelSyncService.start()
         serverUserStateProjection.start()
         serverMatcher.start()
+        familyBootstrap.start()
         // Load locale synchronously so it's available before Activity.attachBaseContext.
         // SharedPreferences reads are fast (cached in memory after first access).
         val tag = getSharedPreferences("app_locale", Context.MODE_PRIVATE)
             .getString("locale_tag", null)
-        LocaleCache.localeTag = tag ?: ""
+        if (tag == null && BuildConfig.FAMILY_BUILD) {
+            getSharedPreferences("app_locale", Context.MODE_PRIVATE).edit().putString("locale_tag", "pl").apply()
+        }
+        LocaleCache.localeTag = tag ?: if (BuildConfig.FAMILY_BUILD) "pl" else ""
     }
 
     override fun newImageLoader(context: android.content.Context): ImageLoader {
