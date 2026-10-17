@@ -127,7 +127,7 @@ fun UniversalEmbySetupScreen(
                 SettingsActionRow(title = stringResource(R.string.kino_setup_other), subtitle = null,
                     onClick = { showSignIn = true })
                 SettingsActionRow(title = stringResource(if (finishing) R.string.kino_setup_finishing else R.string.kino_setup_continue),
-                    subtitle = stringResource(R.string.kino_setup_next_settings),
+                    subtitle = null,
                     enabled = !finishing && connection.selectedLibraries.isNotEmpty(), onClick = setup::complete)
             }
         }

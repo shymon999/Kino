@@ -120,4 +120,62 @@ class ServerPosterServiceTest {
         runCurrent()
         coVerify(exactly = 0) { api.findByExternalId(any(), any(), any()) }
     }
+
+    @Test fun changingPosterSourceRestoresEmbyAndCanReusePolishArtwork() = runTest {
+        match()
+        coEvery { api.getMovieImages(123, "test-key", "pl") } returns Response.success(
+            TmdbImagesResponse(posters = listOf(TmdbImage("/pl.jpg", "pl"))))
+        var activeKey = ""
+        val service = ServerPosterService(api, backgroundScope, "", configuredApiKey = { activeKey })
+        service.cachedAndRequest(listOf(item()))
+        runCurrent()
+        coVerify(exactly = 0) { api.findByExternalId(any(), any(), any()) }
+        activeKey = "test-key"
+        service.cachedAndRequest(listOf(item()))
+        runCurrent()
+        val decorated = service.cached(listOf(item())).single()
+        assertEquals("https://image.tmdb.org/t/p/w500/pl.jpg", decorated.poster)
+        activeKey = ""
+        assertEquals(item().poster, service.cachedAndRequest(listOf(decorated)).single().poster)
+        activeKey = "test-key"
+        assertEquals(decorated.poster, service.cachedAndRequest(listOf(decorated)).single().poster)
+        coVerify(exactly = 1) { api.findByExternalId(any(), any(), any()) }
+    }
+
+    @Test fun disablingTmdbDuringLookupDoesNotApplyItsLateResponse() = runTest {
+        match()
+        val release = CompletableDeferred<Unit>()
+        coEvery { api.getMovieImages(123, "test-key", "pl") } coAnswers {
+            release.await()
+            Response.success(TmdbImagesResponse(posters = listOf(TmdbImage("/pl.jpg", "pl"))))
+        }
+        var activeKey = "test-key"
+        val service = ServerPosterService(api, backgroundScope, "", configuredApiKey = { activeKey })
+        service.cachedAndRequest(listOf(item()))
+        runCurrent()
+        activeKey = ""
+        release.complete(Unit)
+        runCurrent()
+        assertEquals(listOf(item()), service.cached(listOf(item())))
+        assertEquals(0L, service.updates.value)
+    }
+
+    @Test fun seriesRequestsPolishTvArtworkAndUnauthorizedKeyKeepsEmby() = runTest {
+        val series = item().copy(type = ContentType.SERIES)
+        coEvery { api.findByExternalId(any(), "bad-key", any()) } returns Response.error(
+            401, okhttp3.ResponseBody.create(null, "Unauthorized"))
+        var activeKey = "bad-key"
+        val service = ServerPosterService(api, backgroundScope, "", configuredApiKey = { activeKey })
+        service.cachedAndRequest(listOf(series))
+        runCurrent()
+        assertEquals(listOf(series), service.cached(listOf(series)))
+        activeKey = "test-key"
+        coEvery { api.findByExternalId(any(), "test-key", any()) } returns Response.success(
+            TmdbFindResponse(tvResults = listOf(TmdbFindResult(456))))
+        coEvery { api.getTvImages(456, "test-key", "pl") } returns Response.success(
+            TmdbImagesResponse(posters = listOf(TmdbImage("/serial-pl.jpg", "pl"))))
+        service.cachedAndRequest(listOf(series))
+        runCurrent()
+        assertEquals("https://image.tmdb.org/t/p/w500/serial-pl.jpg", service.cached(listOf(series)).single().poster)
+    }
 }

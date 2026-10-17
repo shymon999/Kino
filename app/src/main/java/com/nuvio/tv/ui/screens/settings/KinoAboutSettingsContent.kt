@@ -29,8 +29,6 @@ internal fun KinoAboutSettingsContent(onLicenses: () -> Unit, initialFocusReques
         BrandWordmark(Modifier.height(48.dp), contentDescription = "Kino")
         Text(stringResource(R.string.kino_about_description), style = MaterialTheme.typography.bodyLarge,
             color = NuvioTheme.colors.TextPrimary)
-        Text(stringResource(R.string.kino_about_features), style = MaterialTheme.typography.bodyMedium,
-            color = NuvioTheme.colors.TextSecondary)
         SettingsActionRow(title = stringResource(R.string.kino_upstream),
             subtitle = "github.com/NuvioMedia/NuvioTV", onClick = {
                 runCatching { context.startActivity(Intent(Intent.ACTION_VIEW,

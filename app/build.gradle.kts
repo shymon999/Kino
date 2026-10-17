@@ -184,6 +184,8 @@ android {
     productFlavors {
         create("full") {
             dimension = "distribution"
+            versionCode = 1070
+            versionName = "1.0.0"
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "true")

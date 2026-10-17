@@ -23,6 +23,7 @@ import com.nuvio.tv.data.local.KinoPreferences
 import com.nuvio.tv.data.local.KinoPreferencesDataStore
 import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.PlayerSettingsDataStore
+import com.nuvio.tv.data.local.PosterPreferencesDataStore
 import com.nuvio.tv.data.mediaserver.ServerCatalog
 import com.nuvio.tv.domain.model.HomeImdbRatingsVisibility
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -35,7 +36,8 @@ class KinoSettingsViewModel @Inject constructor(
     val preferences: KinoPreferencesDataStore,
     val catalog: ServerCatalog,
     private val player: PlayerSettingsDataStore,
-    private val layout: LayoutPreferenceDataStore
+    private val layout: LayoutPreferenceDataStore,
+    val posters: PosterPreferencesDataStore
 ) : ViewModel() {
     val autoQuality = player.playerSettings.map { it.serverAutoBitrateEnabled }
     val ratings = layout.homeImdbRatingsVisibility.map { it.showRatings }
@@ -54,6 +56,7 @@ internal fun KinoSettingsContent(
     val preferences by viewModel.preferences.state.collectAsStateWithLifecycle()
     val autoQuality by viewModel.autoQuality.collectAsStateWithLifecycle(initialValue = false)
     val ratings by viewModel.ratings.collectAsStateWithLifecycle(initialValue = true)
+    val posters by viewModel.posters.state.collectAsStateWithLifecycle()
     var picker by remember { mutableStateOf<String?>(null) }
     var showServers by remember { mutableStateOf(false) }
     var connectionId by remember { mutableStateOf<String?>(null) }
@@ -87,10 +90,14 @@ internal fun KinoSettingsContent(
                 subtitle = stringResource(R.string.kino_catalog_order_description), onClick = onCatalogOrder)
             SettingsToggleRow(title = stringResource(R.string.kino_poster_ratings), subtitle = null,
                 checked = ratings, onToggle = { viewModel.setRatings(!ratings) })
+            SettingsActionRow(title = stringResource(R.string.kino_posters), subtitle = null,
+                value = stringResource(if (posters.polishPosters && posters.hasApiKey) R.string.kino_posters_tmdb else R.string.kino_posters_emby),
+                onClick = { picker = "posters" })
             SettingsActionRow(title = stringResource(R.string.settings_media_servers),
                 subtitle = stringResource(R.string.kino_servers_description), onClick = { showServers = true })
         }
     }
+    if (picker == "posters") KinoPosterSettingsDialog(viewModel.posters, onDismiss = { picker = null })
     if (picker == "bitrate") SettingsSingleChoiceDialog<Int?>(
         title = stringResource(R.string.kino_bitrate),
         options = listOf(SettingsPickerOption<Int?>(null, stringResource(R.string.kino_unlimited))) +

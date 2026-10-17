@@ -61,7 +61,7 @@ class ServerCatalog @Inject constructor(
     val posterUpdates: Flow<Long> get() = serverPosters?.updates ?: kotlinx.coroutines.flow.emptyFlow()
 
     fun cachedPosters(row: CatalogRow): CatalogRow =
-        if (isServerAddon(row.addonBaseUrl)) row.copy(items = serverPosters?.cached(row.items) ?: row.items) else row
+        if (isServerAddon(row.addonBaseUrl)) row.copy(items = serverPosters?.cachedAndRequest(row.items) ?: row.items) else row
     private val libraryRefreshMutex = Mutex()
     private val libraryRefreshTimes = mutableMapOf<String, Long>()
 
