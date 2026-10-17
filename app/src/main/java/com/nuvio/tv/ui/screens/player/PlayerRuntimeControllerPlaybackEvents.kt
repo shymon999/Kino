@@ -288,6 +288,7 @@ internal fun PlayerRuntimeController.startProgressUpdates() {
             }
 
             _exoPlayer?.let { player ->
+                adaptServerBitrate(player)
                 val pos = player.currentPosition.coerceAtLeast(0L)
                 val playerDuration = player.duration
                 if (playerDuration > lastKnownDuration) {

@@ -126,11 +126,15 @@ data class ServerPage<T>(
     val totalCount: Int?
 )
 
+@androidx.annotation.Keep
 data class ServerTitle(
     val preview: MetaPreview,
-    val externalIds: TrackingExternalIds = TrackingExternalIds()
+    val externalIds: TrackingExternalIds = TrackingExternalIds(),
+    val searchNames: List<String> = emptyList(),
+    val peopleNames: List<String> = emptyList()
 )
 
+@androidx.annotation.Keep
 data class ServerItemDetails(
     val meta: Meta,
     val externalIds: TrackingExternalIds,
@@ -165,7 +169,8 @@ data class ServerPlaybackRequest(
 
 data class ServerPlayerCapabilities(
     val allowDirectPlay: Boolean = true,
-    val maxStreamingBitrate: Long = 40_000_000L
+    val maxStreamingBitrate: Long = 40_000_000L,
+    val forceVideoTranscoding: Boolean = false
 )
 
 enum class ServerPlayMethod(val wireName: String) {
@@ -186,7 +191,9 @@ class ServerPlaybackSession(
     val burnInSubtitles: List<ServerTrack> = emptyList(),
     val transcodeReasons: List<String> = emptyList(),
     val maxStreamingBitrate: Long? = null,
-    val requestedVideoBitrate: Long? = null
+    val requestedVideoBitrate: Long? = null,
+    val forceVideoTranscoding: Boolean = false,
+    val sourceBitrate: Long? = null
 ) {
     override fun toString(): String = "ServerPlaybackSession(item=${target.item.itemId}, method=$playMethod)"
 }

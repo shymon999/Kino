@@ -477,7 +477,10 @@ internal fun PlayerRuntimeController.initializePlayer(
                     .setInitialBitrateEstimate(ADAPTIVE_INITIAL_BITRATE_ESTIMATE_BPS)
                     .build()
             }
-            val bandwidthMeter = SafeBandwidthMeter(rawBandwidthMeter, isHls)
+            val bandwidthMeter = SafeBandwidthMeter(rawBandwidthMeter, isHls && !playerSettings.serverAutoBitrateEnabled)
+            serverBandwidthEstimateBps = null
+            serverSlowSegment = false
+            serverMediaLoadStartedAt = 0
 
             val resolvedStreamMime = currentStreamMimeType ?: PlayerMediaSourceFactory.inferMimeType(
                 url = url,
@@ -651,7 +654,7 @@ internal fun PlayerRuntimeController.initializePlayer(
             }
             // ── Track Selector Setup ──
             val adaptiveTrackSelectionFactory = AdaptiveTrackSelection.Factory(
-                ADAPTIVE_QUALITY_INCREASE_MIN_DURATION_MS,
+                if (playerSettings.serverAutoBitrateEnabled) 30_000 else ADAPTIVE_QUALITY_INCREASE_MIN_DURATION_MS,
                 AdaptiveTrackSelection.DEFAULT_MAX_DURATION_FOR_QUALITY_DECREASE_MS,
                 AdaptiveTrackSelection.DEFAULT_MIN_DURATION_TO_RETAIN_AFTER_DISCARD_MS,
                 AdaptiveTrackSelection.DEFAULT_BANDWIDTH_FRACTION
@@ -1809,6 +1812,11 @@ internal fun PlayerRuntimeController.initializePlayer(
                         totalBytesLoaded: Long,
                         bitrateEstimate: Long
                     ) {
+                        val minimumSampleMs = if (com.nuvio.tv.BuildConfig.FAMILY_BUILD) 10 else 200
+                        if (totalLoadTimeMs >= minimumSampleMs && totalBytesLoaded >= 128 * 1024) {
+                            serverBandwidthEstimateBps = bitrateEstimate.takeIf { it > 0 }
+                            serverBandwidthSampleAt = android.os.SystemClock.elapsedRealtime()
+                        }
                         playbackAnalyticsDiagnostics.onBandwidthEstimate(
                             eventTime = eventTime,
                             totalLoadTimeMs = totalLoadTimeMs,
@@ -1822,6 +1830,13 @@ internal fun PlayerRuntimeController.initializePlayer(
                         loadEventInfo: LoadEventInfo,
                         mediaLoadData: MediaLoadData
                     ) {
+                        val duration = mediaLoadData.mediaEndTimeMs - mediaLoadData.mediaStartTimeMs
+                        if (mediaLoadData.dataType == C.DATA_TYPE_MEDIA && mediaLoadData.trackType != C.TRACK_TYPE_AUDIO &&
+                            mediaLoadData.mediaStartTimeMs != C.TIME_UNSET && mediaLoadData.mediaEndTimeMs != C.TIME_UNSET && duration > 0) {
+                            serverMediaLoadId = loadEventInfo.loadTaskId
+                            serverMediaLoadStartedAt = android.os.SystemClock.elapsedRealtime()
+                            serverMediaLoadDuration = duration
+                        }
                         playbackAnalyticsDiagnostics.onLoadStarted(eventTime, loadEventInfo, mediaLoadData)
                     }
 
@@ -1830,6 +1845,13 @@ internal fun PlayerRuntimeController.initializePlayer(
                         loadEventInfo: LoadEventInfo,
                         mediaLoadData: MediaLoadData
                     ) {
+                        if (serverMediaLoadId == loadEventInfo.loadTaskId) serverMediaLoadStartedAt = 0
+                        val segmentDuration = mediaLoadData.mediaEndTimeMs - mediaLoadData.mediaStartTimeMs
+                        if (mediaLoadData.dataType == C.DATA_TYPE_MEDIA && segmentDuration > 0 &&
+                            mediaLoadData.mediaEndTimeMs != C.TIME_UNSET && mediaLoadData.mediaStartTimeMs != C.TIME_UNSET) {
+                            serverSlowSegment = loadEventInfo.loadDurationMs > segmentDuration * 1.1
+                            serverSlowSegmentAt = android.os.SystemClock.elapsedRealtime()
+                        }
                         playbackAnalyticsDiagnostics.onLoadCompleted(eventTime, loadEventInfo, mediaLoadData)
                     }
 
@@ -1838,6 +1860,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                         loadEventInfo: LoadEventInfo,
                         mediaLoadData: MediaLoadData
                     ) {
+                        if (serverMediaLoadId == loadEventInfo.loadTaskId) serverMediaLoadStartedAt = 0
                         playbackAnalyticsDiagnostics.onLoadCanceled(eventTime, loadEventInfo, mediaLoadData)
                     }
 
@@ -1848,6 +1871,7 @@ internal fun PlayerRuntimeController.initializePlayer(
                         error: java.io.IOException,
                         wasCanceled: Boolean
                     ) {
+                        if (serverMediaLoadId == loadEventInfo.loadTaskId) serverMediaLoadStartedAt = 0
                         playbackAnalyticsDiagnostics.onLoadError(
                             eventTime = eventTime,
                             loadEventInfo = loadEventInfo,

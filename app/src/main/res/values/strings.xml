@@ -3386,4 +3386,6 @@
     <string name="autosync_toast_failed_no_reference">Sync failed: this video has no embedded subtitles to compare with.</string>
     <string name="autosync_toast_failed_unsupported">Sync failed: Auto Sync doesn\'t support this subtitle format.</string>
     <string name="autosync_label_synced">Auto synced</string>
+    <string name="server_auto_bitrate">Automatic Emby quality</string>
+    <string name="server_auto_bitrate_description">Starts at 40 Mb/s. Reduces quality when the connection cannot keep up and recovers cautiously. Requires server transcoding permission. ExoPlayer only.</string>
 </resources>

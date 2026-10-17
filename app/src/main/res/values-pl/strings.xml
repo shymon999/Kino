@@ -3462,4 +3462,6 @@
     <string name="mdblist_library_lists_summary">%1$d z %2$d widocznych</string>
     <string name="tracking_mdblist_features_subtitle">Ustawienia specyficzne dla MDBList</string>
     <string name="tracking_mdblist_features_title">Funkcje MDBList</string>
+    <string name="server_auto_bitrate">Automatyczna jakość Emby</string>
+    <string name="server_auto_bitrate_description">Start od 40 Mb/s. Obniża jakość, gdy łącze nie nadąża, i ostrożnie ją przywraca. Wymaga uprawnienia do transkodowania. Tylko ExoPlayer.</string>
 </resources>

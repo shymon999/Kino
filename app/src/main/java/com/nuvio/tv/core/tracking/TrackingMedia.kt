@@ -1,5 +1,6 @@
 package com.nuvio.tv.core.tracking
 
+@androidx.annotation.Keep
 data class TrackingExternalIds(
     val imdb: String? = null,
     val tmdb: Long? = null,

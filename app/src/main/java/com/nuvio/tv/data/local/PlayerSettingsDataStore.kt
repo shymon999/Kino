@@ -215,6 +215,7 @@ enum class AudioOutputChannels(
  * Data class representing player settings
  */
 data class PlayerSettings(
+    val serverAutoBitrateEnabled: Boolean = false,
     val playerPreference: PlayerPreference = PlayerPreference.INTERNAL,
     val internalPlayerEngine: InternalPlayerEngine = InternalPlayerEngine.EXOPLAYER,
     val autoSwitchInternalPlayerOnError: Boolean = false,
@@ -559,6 +560,7 @@ class PlayerSettingsDataStore @Inject constructor(
     private val vodCacheSizeModeKey = stringPreferencesKey("vod_cache_size_mode")
     private val vodCacheSizeMbKey = intPreferencesKey("vod_cache_size_mb")
     private val useParallelConnectionsKey = booleanPreferencesKey("use_parallel_connections")
+    private val serverAutoBitrateEnabledKey = booleanPreferencesKey("server_auto_bitrate_enabled")
     private val bufferEngineEnabledKey = booleanPreferencesKey("buffer_engine_enabled")
     private val parallelNetworkEnabledKey = booleanPreferencesKey("parallel_network_enabled")
     private val allowLargeTargetBufferKey = booleanPreferencesKey("allow_large_target_buffer")
@@ -974,6 +976,7 @@ class PlayerSettingsDataStore @Inject constructor(
                 } ?: PlayerSettings.DEFAULT_VOD_CACHE_SIZE_MODE,
                 vodCacheSizeMb = (prefs[vodCacheSizeMbKey] ?: PlayerSettings.DEFAULT_VOD_CACHE_SIZE_MB).coerceIn(PlayerSettings.MIN_VOD_CACHE_SIZE_MB, PlayerSettings.MAX_VOD_CACHE_SIZE_MB),
                 useParallelConnections = prefs[useParallelConnectionsKey] ?: PlayerSettings.DEFAULT_USE_PARALLEL_CONNECTIONS,
+                serverAutoBitrateEnabled = prefs[serverAutoBitrateEnabledKey] ?: false,
                 bufferEngineEnabled = prefs[bufferEngineEnabledKey] ?: false,
                 parallelNetworkEnabled = prefs[parallelNetworkEnabledKey] ?: false,
                 allowLargeTargetBuffer = prefs[allowLargeTargetBufferKey] ?: PlayerSettings.DEFAULT_ALLOW_LARGE_TARGET_BUFFER,
@@ -1669,6 +1672,10 @@ class PlayerSettingsDataStore @Inject constructor(
     suspend fun setVodCacheSizeMode(mode: VodCacheSizeMode) { store().edit { it[vodCacheSizeModeKey] = mode.name } }
     suspend fun setVodCacheSizeMb(mb: Int) { store().edit { it[vodCacheSizeMbKey] = mb.coerceIn(PlayerSettings.MIN_VOD_CACHE_SIZE_MB, PlayerSettings.MAX_VOD_CACHE_SIZE_MB) } }
     suspend fun setUseParallelConnections(enabled: Boolean) { store().edit { it[useParallelConnectionsKey] = enabled } }
+    suspend fun setServerAutoBitrateEnabled(enabled: Boolean) {
+        store().edit { it[serverAutoBitrateEnabledKey] = enabled }
+    }
+
     suspend fun setBufferEngineEnabled(enabled: Boolean) {
         store().edit { it[bufferEngineEnabledKey] = enabled }
     }

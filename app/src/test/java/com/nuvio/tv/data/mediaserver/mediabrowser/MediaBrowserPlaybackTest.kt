@@ -24,6 +24,17 @@ import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 
 class MediaBrowserPlaybackTest {
+    @Test fun changingQualityDisablesVideoCopyAndNegotiatesNewTarget() = runBlocking {
+        val http = TestHttp { """{"MediaSources":[{"Id":"ms1","SupportsDirectStream":true,"TranscodingUrl":"/videos/item1/master.m3u8?VideoBitrate=34808000"}]}""" }
+        val playback = EmbyProvider(http.client, testIdentity).preparePlayback(embySession,
+            request.copy(capabilities = ServerPlayerCapabilities(allowDirectPlay = false, maxStreamingBitrate = 35_000_000, forceVideoTranscoding = true)))
+        val body = json.parseToJsonElement(http.requests.single().text).jsonObject
+        assertEquals("false", body.getValue("AllowVideoStreamCopy").jsonPrimitive.content)
+        assertEquals("35000000", body.getValue("MaxStreamingBitrate").jsonPrimitive.content)
+        assertEquals(ServerPlayMethod.TRANSCODE, playback.playMethod)
+        assertEquals(34_808_000L, playback.requestedVideoBitrate)
+        assertTrue(playback.forceVideoTranscoding)
+    }
     private val jellyfin = JellyfinProvider(TestHttp().client, testIdentity)
     private val emby = EmbyProvider(TestHttp().client, testIdentity)
     private val json = Json { ignoreUnknownKeys = true }

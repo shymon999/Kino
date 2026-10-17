@@ -380,6 +380,10 @@ class PlaybackSettingsViewModel @Inject constructor(
     suspend fun setVodCacheEnabled(enabled: Boolean) {
         playerSettingsDataStore.setVodCacheEnabled(enabled)
     }
+    suspend fun setServerAutoBitrateEnabled(enabled: Boolean) {
+        playerSettingsDataStore.setServerAutoBitrateEnabled(enabled)
+    }
+
     suspend fun setBufferEngineEnabled(enabled: Boolean) {
         playerSettingsDataStore.setBufferEngineEnabled(enabled)
     }

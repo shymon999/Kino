@@ -100,15 +100,25 @@ class ServerPlayback internal constructor(
         playback.stop()
     }
 
+    suspend fun changeQuality(url: String, bitrate: Long, audioStreamIndex: Int? = null): ServerPlaybackSession? {
+        require(bitrate in 10_000_000L..40_000_000L)
+        val current = synchronized(lock) { active[url] } ?: return null
+        return restart(url, current, audioStreamIndex ?: current.playback.audioTracks.selectedIndex(),
+            current.playback.burnInSubtitles.selectedIndex(), bitrate, forceVideoTranscoding = true)
+    }
+
     private suspend fun restart(
         url: String,
         current: ActivePlayback,
         audioStreamIndex: Int?,
-        subtitleStreamIndex: Int?
+        subtitleStreamIndex: Int?,
+        bitrate: Long = current.playback.maxStreamingBitrate ?: 40_000_000L,
+        forceVideoTranscoding: Boolean = current.playback.forceVideoTranscoding
     ): ServerPlaybackSession? {
         val request = ServerPlaybackRequest(
             target = current.playback.target,
-            capabilities = ServerPlayerCapabilities(allowDirectPlay = false),
+            capabilities = ServerPlayerCapabilities(allowDirectPlay = false, maxStreamingBitrate = bitrate,
+                forceVideoTranscoding = forceVideoTranscoding),
             audioStreamIndex = audioStreamIndex,
             subtitleStreamIndex = subtitleStreamIndex
         )
@@ -120,8 +130,18 @@ class ServerPlayback internal constructor(
             Log.w(TAG, "Playback restart for ${current.label} failed: ${error.serverFailure()} (${error.message})")
             return null
         }
-        stop(url)
-        synchronized(lock) { active[playback.url] = ActivePlayback(current.provider, current.session, playback) }
+        val replaced = synchronized(lock) {
+            if (active[url] !== current) false else {
+                active.remove(url)
+                active[playback.url] = ActivePlayback(current.provider, current.session, playback)
+                true
+            }
+        }
+        if (!replaced) {
+            ActivePlayback(current.provider, current.session, playback).stop()
+            return null
+        }
+        current.stop()
         return playback
     }
 

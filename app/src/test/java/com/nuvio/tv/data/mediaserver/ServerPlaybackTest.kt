@@ -18,6 +18,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ServerPlaybackTest {
+    @Test fun qualityChangeKeepsTargetAndDoesNotResetCapWhenAudioChanges() = runBlocking {
+        val provider = FakeServerProvider(transcodes = true)
+        val harness = harness(provider)
+        val original = harness.playback.prepare(ServerPlaybackTarget(ServerItemRef(harness.connection.id, "42"), "src-42"))
+        val changed = harness.playback.changeQuality(original.url, 35_000_000, 2)!!
+        assertEquals(original.target, changed.target)
+        assertEquals(35_000_000L, changed.maxStreamingBitrate)
+        assertTrue(changed.forceVideoTranscoding)
+        assertFalse(harness.playback.isServerSource(original.url))
+        assertTrue(harness.playback.isServerSource(changed.url))
+        harness.playback.switchAudio(changed.url, 1)
+        assertEquals(35_000_000L, provider.playbackRequests.last().capabilities.maxStreamingBitrate)
+        assertTrue(provider.playbackRequests.last().capabilities.forceVideoTranscoding)
+    }
+
+    @Test fun deniedQualityChangeLeavesOriginalSessionActive() = runBlocking {
+        val harness = harness()
+        val original = harness.playback.prepare(ServerPlaybackTarget(ServerItemRef(harness.connection.id, "42"), "src-42"))
+        assertNull(harness.playback.changeQuality(original.url, 30_000_000))
+        assertTrue(harness.playback.isServerSource(original.url))
+    }
     private val metaRepository = mockk<MetaRepository> {
         every { getCachedMeta(any(), any()) } returns null
     }

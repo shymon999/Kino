@@ -38,6 +38,12 @@ internal fun PlaybackBufferNetworkSection(
         onUpdate(block)
         onMemorySettingChanged()
     }
+    SettingsToggleRow(
+        title = stringResource(R.string.server_auto_bitrate),
+        subtitle = stringResource(R.string.server_auto_bitrate_description),
+        checked = settings.serverAutoBitrateEnabled,
+        onToggle = { onUpdate { setServerAutoBitrateEnabled(!settings.serverAutoBitrateEnabled) } }
+    )
     val context = LocalContext.current
     val isSupported = android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O
     var showPerformanceModeWarning by remember { mutableStateOf(false) }

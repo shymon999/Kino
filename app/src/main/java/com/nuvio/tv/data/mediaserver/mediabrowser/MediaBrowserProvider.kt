@@ -323,6 +323,36 @@ internal abstract class MediaBrowserProvider(
         )
     }
 
+    override suspend fun personDetails(session: ServerSession, personId: String): com.nuvio.tv.domain.model.PersonDetail {
+        val person = item(session, personId, "Overview")
+        val credits = mutableListOf<ServerTitle>()
+        for (library in session.connection.selectedLibraries.filter { it.kind != ServerMediaKind.COLLECTION }) {
+            var start = 0
+            while (true) {
+                val page = get(session, itemsEndpoint(session.userId), ItemsResult.serializer(), mapOf(
+                    "parentId" to library.id, "recursive" to "true", "personIds" to personId,
+                    "includeItemTypes" to library.kind.itemType(), "fields" to listFields,
+                    "enableUserData" to "false", "startIndex" to start.toString(), "limit" to "200",
+                    "sortBy" to "SortName", "sortOrder" to "Ascending", "enableTotalRecordCount" to "true"
+                ))
+                credits += page.items.mapNotNull(mapper(session)::title)
+                start += page.items.size
+                if (page.items.isEmpty() || (page.totalRecordCount?.let { start >= it } ?: (page.items.size < 200))) break
+                if (start > 100_000) throw ServerException(ServerFailure.FAILED)
+            }
+        }
+        val previews = credits.distinctBy { it.preview.id }.map { it.preview }
+        return com.nuvio.tv.domain.model.PersonDetail(
+            tmdbId = 0, name = person.name.orEmpty(), biography = person.overview,
+            birthday = null, deathday = null, placeOfBirth = null, knownFor = null,
+            profilePhoto = person.imageTags["Primary"]?.let {
+                mapper(session).image(person.id, "Primary", it, maxHeight = 600)
+            },
+            movieCredits = previews.filter { it.type == com.nuvio.tv.domain.model.ContentType.MOVIE },
+            tvCredits = previews.filter { it.type == com.nuvio.tv.domain.model.ContentType.SERIES }
+        )
+    }
+
     override suspend fun candidates(session: ServerSession, itemId: String): List<ServerCandidate> =
         mapper(session).candidates(item(session, itemId, "MediaSources"))
 
@@ -404,6 +434,7 @@ internal abstract class MediaBrowserProvider(
             subtitleStreamIndex = request.subtitleStreamIndex,
             maxStreamingBitrate = request.capabilities.maxStreamingBitrate,
             enableDirectPlay = request.capabilities.allowDirectPlay,
+            allowVideoStreamCopy = !request.capabilities.forceVideoTranscoding,
             deviceProfile = deviceProfile(request.capabilities)
         )
         val response = client.execute(
@@ -441,7 +472,7 @@ internal abstract class MediaBrowserProvider(
             ?: info.mediaSources.firstOrNull { !it.isPlaceholder }
             ?: throw ServerException(ServerFailure.NOT_FOUND)
         val (url, method) = when {
-            source.supportsDirectPlay && request.capabilities.allowDirectPlay -> buildUrl(
+            source.supportsDirectPlay && request.capabilities.allowDirectPlay && !request.capabilities.forceVideoTranscoding -> buildUrl(
                 session.apiRoot,
                 "/Videos/${pathSegment(itemId)}/stream",
                 mapOf(
@@ -455,7 +486,7 @@ internal abstract class MediaBrowserProvider(
             ) to ServerPlayMethod.DIRECT_PLAY
 
             source.transcodingUrl != null -> withApiKey(session.resolve(source.transcodingUrl), session.token) to
-                if (source.supportsDirectStream) ServerPlayMethod.DIRECT_STREAM else ServerPlayMethod.TRANSCODE
+                if (source.supportsDirectStream && !request.capabilities.forceVideoTranscoding) ServerPlayMethod.DIRECT_STREAM else ServerPlayMethod.TRANSCODE
 
             else -> throw ServerException(ServerFailure.UNSUPPORTED)
         }
@@ -484,7 +515,9 @@ internal abstract class MediaBrowserProvider(
             burnInSubtitles = burnInSubtitles(source, url),
             transcodeReasons = transcodeReasons(url),
             maxStreamingBitrate = request.capabilities.maxStreamingBitrate,
-            requestedVideoBitrate = queryValue(url, "VideoBitrate")?.toLongOrNull()?.takeIf { it > 0 }
+            requestedVideoBitrate = queryValue(url, "VideoBitrate")?.toLongOrNull()?.takeIf { it > 0 },
+            forceVideoTranscoding = request.capabilities.forceVideoTranscoding,
+            sourceBitrate = source.bitrate?.takeIf { it > 0 }
         )
     }
 

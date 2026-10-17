@@ -516,6 +516,16 @@ class PlayerRuntimeController(
     internal var skipIntroEnabled: Boolean = true
     internal var parentalGuideEnabled: Boolean = false
     internal var autoSkipSegmentTypes: Set<AutoSkipSegmentType> = emptySet()
+    internal val serverBitratePolicy = ServerBitratePolicy(responsive = com.nuvio.tv.BuildConfig.FAMILY_BUILD)
+    internal var serverQualityJob: kotlinx.coroutines.Job? = null
+    internal var serverBandwidthEstimateBps: Long? = null
+    internal var serverBandwidthSampleAt: Long = 0
+    internal var serverQualityLogAt: Long = 0
+    internal var serverSlowSegmentAt: Long = 0
+    internal var serverSlowSegment: Boolean = false
+    internal var serverMediaLoadId: Long = -1
+    internal var serverMediaLoadStartedAt: Long = 0
+    internal var serverMediaLoadDuration: Long = 0
     internal var playerSettingsInitialized: Boolean = false
     internal var skipIntroFetchedKey: String? = null
     internal val autoSkippedIntervalKeys: MutableSet<String> = mutableSetOf()

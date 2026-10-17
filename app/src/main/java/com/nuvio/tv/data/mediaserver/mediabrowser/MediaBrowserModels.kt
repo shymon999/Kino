@@ -42,6 +42,7 @@ internal data class ItemsResult(
 internal data class BaseItem(
     @SerialName("Id") val id: String,
     @SerialName("Name") val name: String? = null,
+    @SerialName("OriginalTitle") val originalTitle: String? = null,
     @SerialName("Type") val type: String? = null,
     @SerialName("CollectionType") val collectionType: String? = null,
     @SerialName("Overview") val overview: String? = null,
@@ -105,6 +106,7 @@ internal data class MediaSource(
     @SerialName("Path") val path: String? = null,
     @SerialName("Container") val container: String? = null,
     @SerialName("Size") val size: Long? = null,
+    @SerialName("Bitrate") val bitrate: Long? = null,
     @SerialName("ETag") val eTag: String? = null,
     @SerialName("SupportsDirectPlay") val supportsDirectPlay: Boolean = false,
     @SerialName("SupportsDirectStream") val supportsDirectStream: Boolean = false,

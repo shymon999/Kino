@@ -40,6 +40,8 @@ internal fun PlayerRuntimeController.reportServerPlayback() {
 internal fun PlayerRuntimeController.stopServerPlayback() {
     serverPlayback.stop(reportedServerUrl ?: currentStreamUrl)
     reportedServerUrl = null
+    serverQualityJob?.cancel()
+    serverBitratePolicy.reset()
 }
 
 internal val PlayerRuntimeController.isServerStream: Boolean
@@ -205,3 +207,76 @@ private fun PlayerRuntimeController.applyPreferredServerAudio(tracks: List<Track
 }
 
 private const val SERVER_RESUME_TIMEOUT_MS = 2_000L
+
+
+@androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
+internal fun PlayerRuntimeController.adaptServerBitrate(player: androidx.media3.exoplayer.ExoPlayer) {
+    if (!currentPlayerSettingsForReport.serverAutoBitrateEnabled) {
+        serverBitratePolicy.reset()
+        return
+    }
+    // Reinitializing a source must preserve cooldowns and failed-upgrade history.
+    if (!hasRenderedFirstFrame) return
+    val url = currentStreamUrl
+    val session = serverPlayback.session(url) ?: return
+    if (serverQualityJob?.isActive == true || errorRetryJob?.isActive == true) return
+    val bitrate = session.maxStreamingBitrate ?: 40_000_000L
+    val adaptiveGroup = player.currentTracks.groups.any { group ->
+        group.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && group.isAdaptiveSupported &&
+            (0 until group.length).count { group.isTrackSupported(it) } > 1
+    }
+    if (adaptiveGroup) {
+        // This constrains available representations; it cannot transcode a single file.
+        val cap = (session.requestedVideoBitrate ?: (bitrate - 512_000L)).toInt()
+        if (player.trackSelectionParameters.maxVideoBitrate != cap) {
+            player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().setMaxVideoBitrate(cap).build()
+        }
+        return
+    }
+    val now = android.os.SystemClock.elapsedRealtime()
+    val bandwidth = serverBandwidthEstimateBps?.takeIf { now - serverBandwidthSampleAt < 15_000 }
+    val required = player.videoFormat?.bitrate?.takeIf { it > 0 }?.toLong()?.plus(512_000L)
+        ?: session.requestedVideoBitrate?.plus(512_000L)
+        ?: session.sourceBitrate
+        ?: PlayerBitrateEstimator.fileBitrateBps(currentVideoSize, player.duration)?.toLong()
+    if (com.nuvio.tv.BuildConfig.FAMILY_BUILD && now - serverQualityLogAt >= 10_000) {
+        serverQualityLogAt = now
+        android.util.Log.i("ServerQuality", "Sample cap=${bitrate / 1_000_000} bufferMs=${player.totalBufferedDuration} " +
+            "bandwidthMbps=${bandwidth?.div(1_000_000)} sampleAgeMs=${now - serverBandwidthSampleAt} " +
+            serverBitratePolicy.diagnostics(now))
+    }
+    val next = serverBitratePolicy.sample(
+        key = session.target.key(), now = now, positionMs = player.currentPosition,
+        bufferedMs = (player.bufferedPosition - player.currentPosition).coerceAtLeast(0),
+        buffering = player.playbackState == androidx.media3.common.Player.STATE_BUFFERING,
+        paused = !player.playWhenReady || userPausedManually,
+        bitrate = bitrate, requiredBitrate = required, bandwidth = bandwidth,
+        slowSegment = (serverSlowSegment && now - serverSlowSegmentAt < 15_000) ||
+            (serverMediaLoadStartedAt > 0 && now - serverMediaLoadStartedAt > maxOf(8_000L, (serverMediaLoadDuration * 1.2).toLong())),
+        bandwidthSampleAt = serverBandwidthSampleAt
+    ) ?: return
+    serverQualityJob = scope.launch {
+        val audioLanguage = player.audioFormat?.language
+        val audioIndex = audioLanguage?.let { language -> session.audioTracks.firstOrNull {
+            PlayerSubtitleUtils.matchesLanguageCode(it.language, language)
+        }?.index }
+        val replacement = serverPlayback.changeQuality(url, next, audioIndex)
+        if (replacement == null) {
+            serverBitratePolicy.failed(android.os.SystemClock.elapsedRealtime())
+            android.util.Log.i("ServerQuality", "Quality negotiation unavailable; keeping current source, retry after 60s")
+            return@launch
+        }
+        if (currentStreamUrl != url) {
+            serverPlayback.stop(replacement.url)
+            return@launch
+        }
+        // Capture the latest playhead after negotiation, while the old source can still play.
+        val position = (_uiState.value.pendingSeekPosition ?: _exoPlayer?.currentPosition ?: _playbackTimeline.value.currentPosition).coerceAtLeast(0)
+        serverBitratePolicy.changed(android.os.SystemClock.elapsedRealtime(), bitrate, next)
+        serverBandwidthEstimateBps = null
+        serverSlowSegment = false
+        serverMediaLoadStartedAt = 0
+        android.util.Log.i("ServerQuality", "Changing server quality ${bitrate / 1_000_000} -> ${next / 1_000_000} Mb/s at ${position}ms")
+        restartServerSession(replacement, position)
+    }
+}
