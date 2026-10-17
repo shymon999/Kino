@@ -16,7 +16,7 @@ class SettingsCatalogTest {
         )
 
         assertEquals(
-            listOf(
+            (if (com.nuvio.tv.BuildConfig.FAMILY_BUILD) emptyList() else listOf(SettingsCategory.KINO)) + listOf(
                 SettingsCategory.ACCOUNT,
                 SettingsCategory.PROFILES,
                 SettingsCategory.APPEARANCE,
@@ -43,7 +43,7 @@ class SettingsCatalogTest {
 
         assertFalse(SettingsCategory.ACCOUNT in categories)
         assertFalse(SettingsCategory.PROFILES in categories)
-        assertEquals(SettingsCategory.APPEARANCE, categories.first())
+        assertEquals(if (com.nuvio.tv.BuildConfig.FAMILY_BUILD) SettingsCategory.APPEARANCE else SettingsCategory.KINO, categories.first())
     }
 
     @Test

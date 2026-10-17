@@ -56,8 +56,8 @@ fun AboutScreen(
     BackHandler { onBackPress() }
 
     SettingsStandaloneScaffold(
-        title = stringResource(R.string.about_title),
-        subtitle = stringResource(R.string.about_subtitle)
+        title = stringResource(if (BuildConfig.FAMILY_BUILD) R.string.about_title else R.string.kino_about_title),
+        subtitle = stringResource(if (BuildConfig.FAMILY_BUILD) R.string.about_subtitle else R.string.kino_about_subtitle)
     ) {
         AboutSettingsContent(
             onNavigateToSupportersContributors = onNavigateToSupportersContributors,
@@ -72,6 +72,10 @@ fun AboutSettingsContent(
     onNavigateToLicensesAttributions: () -> Unit = {},
     initialFocusRequester: FocusRequester? = null
 ) {
+    if (!BuildConfig.FAMILY_BUILD) {
+        KinoAboutSettingsContent(onNavigateToLicensesAttributions, initialFocusRequester)
+        return
+    }
     val context = LocalContext.current
     val aboutScrollState = rememberScrollState()
     var firstRowFocused by remember { mutableStateOf(false) }

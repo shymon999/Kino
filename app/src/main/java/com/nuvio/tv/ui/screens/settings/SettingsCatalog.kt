@@ -9,6 +9,7 @@ internal enum class SettingsRailGroup {
 }
 
 internal enum class SettingsCategory(val group: SettingsRailGroup) {
+    KINO(SettingsRailGroup.YOU),
     ACCOUNT(SettingsRailGroup.YOU),
     PROFILES(SettingsRailGroup.YOU),
     APPEARANCE(SettingsRailGroup.LOOK),
@@ -29,6 +30,7 @@ internal fun visibleSettingsCategories(
     isDebugBuild: Boolean
 ): List<SettingsCategory> = SettingsCategory.entries.filter { category ->
     when (category) {
+        SettingsCategory.KINO -> !com.nuvio.tv.BuildConfig.FAMILY_BUILD
         SettingsCategory.ACCOUNT,
         SettingsCategory.PROFILES -> isPrimaryProfile
         SettingsCategory.DEBUG -> isDebugBuild && !isEssentialMode

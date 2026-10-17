@@ -311,6 +311,9 @@ open class MainActivity : ComponentActivity() {
     lateinit var appOnboardingDataStore: AppOnboardingDataStore
 
     @Inject
+    lateinit var kinoPreferences: com.nuvio.tv.data.local.KinoPreferencesDataStore
+
+    @Inject
     lateinit var familyBootstrap: com.nuvio.tv.data.mediaserver.FamilyBootstrap
 
     @Inject
@@ -412,6 +415,7 @@ open class MainActivity : ComponentActivity() {
             val hasSeenAuthQrOnFirstLaunch by hasSeenAuthQrFlow.collectAsState(initial = null)
             val authState by authManager.authState.collectAsState()
             val familySetup by familyBootstrap.state.collectAsState()
+            val kinoSettings by kinoPreferences.state.collectAsState()
             val context = LocalContext.current
 
             LaunchedEffect(authSessionNoticeDataStore, context) {
@@ -742,10 +746,13 @@ open class MainActivity : ComponentActivity() {
                         com.nuvio.tv.ui.screens.account.FamilySetupScreen(
                             state = familySetup, onRetry = familyBootstrap::start
                         )
+                    } else if (!BuildConfig.FAMILY_BUILD && !kinoSettings.serverSetupComplete) {
+                        startupDestination = StartupDestination.Setup
+                        com.nuvio.tv.ui.screens.settings.UniversalEmbySetupScreen(onExit = { finish() })
                     } else if (!surfaceContentReady) {
                         // Still loading auth state; nothing to show yet.
                     } else if (
-                        hasSeenAuthQrOnFirstLaunch == false &&
+                        BuildConfig.FAMILY_BUILD && hasSeenAuthQrOnFirstLaunch == false &&
                         authState !is AuthState.FullAccount &&
                         !onboardingCompletedThisSession
                     ) {

@@ -1,0 +1,32 @@
+<resources>
+    <string name="kino_settings">Kino settings</string>
+    <string name="kino_settings_description">Playback quality, genre rows and your server</string>
+    <string name="kino_bitrate">Maximum streaming bitrate</string>
+    <string name="kino_bitrate_description">Applies when starting a title. No limit keeps the original quality when supported.</string>
+    <string name="kino_unlimited">No limit</string>
+    <string name="kino_auto_quality_description">Adjusts quality when the connection slows down. Requires server transcoding permission; switching may briefly pause playback.</string>
+    <string name="kino_hidden_genres">Hide genre rows</string>
+    <string name="kino_hidden_genres_description">Choose rows to hide. Their titles remain available in search.</string>
+    <string name="kino_catalog_order">Row visibility and order</string>
+    <string name="kino_catalog_order_description">Reorder individual movie and series rows, or hide them.</string>
+    <string name="kino_poster_ratings">Ratings on posters</string>
+    <string name="kino_servers_description">Connect an account and choose its libraries.</string>
+    <string name="kino_about_title">About Kino</string>
+    <string name="kino_about_subtitle">A NuvioTV fork for Emby libraries</string>
+    <string name="kino_about_version">Version %1$s</string>
+    <string name="kino_about_description">Kino is a fork of NuvioTV adapted for Emby libraries. The original player and interface are based on the work of the NuvioTV authors.</string>
+    <string name="kino_about_features">Genre rows, tolerant title and actor search, local viewing history, and configurable streaming quality. Ratings and metadata come from your server.</string>
+    <string name="kino_upstream">Original NuvioTV project</string>
+    <string name="kino_setup_title">Welcome to Kino</string>
+    <string name="kino_setup_description">Connect your Emby server to start watching.</string>
+    <string name="kino_setup_privacy">Use your own Emby account. A Nuvio account is not required. Viewing history stays on this TV.</string>
+    <string name="kino_connect_emby">Connect Emby</string>
+    <string name="kino_setup_login_description">Enter the server address, username and password.</string>
+    <string name="kino_select_libraries">Choose your libraries</string>
+    <string name="kino_setup_continue">Start watching</string>
+    <string name="kino_setup_finishing">Saving settings…</string>
+    <string name="kino_setup_next_settings">You can change libraries and quality later in Kino settings.</string>
+    <string name="kino_setup_failed">Could not save settings. Try again.</string>
+    <string name="kino_setup_empty">This account has no available libraries. Check the account permissions or connect another account.</string>
+    <string name="kino_setup_other">Connect another account or server</string>
+</resources>
