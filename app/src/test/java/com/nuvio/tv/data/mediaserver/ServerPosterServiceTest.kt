@@ -23,6 +23,23 @@ import retrofit2.Response
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class ServerPosterServiceTest {
+    @get:org.junit.Rule val folder = org.junit.rules.TemporaryFolder()
+
+    @Test fun restartRestoresPolishPosterWithoutRepeatingTmdbLookup() = runTest {
+        match()
+        coEvery { api.getMovieImages(123, "test-key", "pl") } returns Response.success(
+            TmdbImagesResponse(posters = listOf(TmdbImage("/pl.jpg", "pl"))))
+        val disk = BoundedMetadataDiskCache(folder.newFolder())
+        val first = ServerPosterService(api, backgroundScope, "test-key", disk)
+        first.cachedAndRequest(listOf(item()))
+        runCurrent()
+        val restarted = ServerPosterService(api, backgroundScope, "test-key", disk)
+        restarted.cachedAndRequest(listOf(item()))
+        runCurrent()
+        assertEquals("https://image.tmdb.org/t/p/w500/pl.jpg", restarted.cached(listOf(item())).single().poster)
+        coVerify(exactly = 1) { api.findByExternalId(any(), any(), any()) }
+    }
+
     private val api = mockk<TmdbApi>()
     private fun item() = MetaPreview(
         id = "server:c1:movie", type = ContentType.MOVIE, name = "Polski tytul",

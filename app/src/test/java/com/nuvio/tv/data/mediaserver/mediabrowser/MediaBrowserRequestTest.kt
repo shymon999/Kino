@@ -21,8 +21,96 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.async
 
 class MediaBrowserRequestTest {
+    @Test fun embyIndexesIndependentLibrariesConcurrently() = runBlocking {
+        val entered = java.util.concurrent.CountDownLatch(2)
+        val concurrent = java.util.concurrent.atomic.AtomicBoolean(true)
+        val http = TestHttp { request ->
+            when {
+                request.url.encodedPath.endsWith("/System/Info/Public") -> """{"Version":"4.10.1.0"}"""
+                request.url.queryParameter("searchTerm") != null -> """{"Items":[]}"""
+                else -> {
+                    entered.countDown()
+                    if (!entered.await(3, java.util.concurrent.TimeUnit.SECONDS)) concurrent.set(false)
+                    """{"Items":[]}"""
+                }
+            }
+        }
+        val emby = EmbyProvider(http.client, testIdentity)
+        kotlinx.coroutines.coroutineScope {
+            val movies = async {
+                emby.search(session("emby", "https://media.example.com"), ServerMediaKind.MOVIE,
+                    listOf(ServerLibrary("movies", "Filmy", ServerMediaKind.MOVIE)), "nold schwarezenegger", 100)
+            }
+            val series = async {
+                emby.search(session("emby", "https://media.example.com"), ServerMediaKind.SERIES,
+                    listOf(ServerLibrary("series", "Seriale", ServerMediaKind.SERIES)), "nold schwarezenegger", 100)
+            }
+            movies.await()
+            series.await()
+        }
+        assertTrue("Independent library indexes blocked each other", concurrent.get())
+    }
+
+    @Test fun embyFindsActorWithClippedFirstNameAndMisspelledSurname() = runBlocking {
+        val http = TestHttp { request ->
+            when {
+                request.url.encodedPath.endsWith("/System/Info/Public") -> """{"Version":"4.10.1.0"}"""
+                request.url.queryParameter("searchTerm") != null -> """{"Items":[]}"""
+                else -> """{"TotalRecordCount":2,"Items":[
+                    {"Id":"terminator","Name":"Terminator","Type":"Movie","People":[{"Name":"Arnold Schwarzenegger","Type":"Actor"}]},
+                    {"Id":"mummy","Name":"Mumia","Type":"Movie","People":[{"Name":"Arnold Vosloo","Type":"Actor"}]}]}"""
+            }
+        }
+        val items = EmbyProvider(http.client, testIdentity).search(session("emby", "https://media.example.com"),
+            ServerMediaKind.MOVIE, listOf(ServerLibrary("selected", "Filmy", ServerMediaKind.MOVIE)),
+            "nold schwarezenegger", 100)
+        assertEquals(listOf("Terminator"), items.map { it.preview.name })
+    }
+
+    @Test fun embyFuzzyIndexFindsDictatedTitlesAndActorCreditsWithinSelectedLibraries() = runBlocking {
+        val http = TestHttp { request ->
+            when {
+                request.url.encodedPath.endsWith("/System/Info/Public") -> """{"Version":"4.10.1.0","aiostreams":false}"""
+                request.url.queryParameter("searchTerm") != null -> """{"Items":[]}"""
+                else -> """{"TotalRecordCount":3,"Items":[
+                    {"Id":"diehard","Name":"Szklana pułapka","Type":"Movie","Genres":["Akcja"],"People":[{"Id":"bruce","Name":"Bruce Willis","Type":"Actor"}]},
+                    {"Id":"sixth","Name":"Szósty zmysł","Type":"Movie","Genres":["Thriller"],"People":[{"Id":"bruce","Name":"Bruce Willis","Type":"Actor"}]},
+                    {"Id":"unrelated","Name":"Inny film","Type":"Movie","People":[{"Id":"other","Name":"Brice Williams","Type":"Actor"}]}]}"""
+            }
+        }
+        val emby = EmbyProvider(http.client, testIdentity)
+        val selected = listOf(ServerLibrary("selected", "Filmy", ServerMediaKind.MOVIE))
+        val owner = session("emby", "https://media.example.com")
+        assertEquals(listOf("Szklana pułapka"), emby.search(owner, ServerMediaKind.MOVIE, selected, "szklanka pulapa", 30).map { it.preview.name })
+        assertEquals(2, emby.search(owner, ServerMediaKind.MOVIE, selected, "Bruce Willis", 30).size)
+        assertTrue(http.requests.filter { it.url.encodedPath.endsWith("/Items") }.all { it.url.queryParameter("parentId") == "selected" })
+        assertEquals(1, http.requests.count { it.url.encodedPath.endsWith("/Items") && it.url.queryParameter("searchTerm") == null })
+    }
+
+    @Test fun personDetailsReturnNativeCreditsFromSelectedLibrariesOnly() = runBlocking {
+        val http = TestHttp { request ->
+            if (request.url.encodedPath.endsWith("/person")) """{"Id":"person","Name":"Bruce Willis","Type":"Person"}"""
+            else """{"TotalRecordCount":1,"Items":[{"Id":"film","Name":"Szklana pułapka","Type":"Movie"}]}"""
+        }
+        val emby = EmbyProvider(http.client, testIdentity)
+        val owner = session("emby", "https://media.example.com")
+        val scoped = ServerSession(owner.connection.copy(libraries = listOf(
+            ServerLibrary("selected", "Filmy", ServerMediaKind.MOVIE),
+            ServerLibrary("hidden", "Inna", ServerMediaKind.MOVIE, selected = false)
+        )), owner.token)
+        val person = emby.personDetails(scoped, "person")
+        assertEquals("Bruce Willis", person.name)
+        assertEquals("Szklana pułapka", person.movieCredits.single().name)
+        assertTrue(ServerItemRef.isServerId(person.movieCredits.single().id))
+        val query = http.requests.single { it.url.queryParameter("personIds") != null }
+        assertEquals("selected", query.url.queryParameter("parentId"))
+        assertEquals("person", query.url.queryParameter("personIds"))
+        assertEquals("false", query.url.queryParameter("enableUserData"))
+    }
+
     @Test
     fun embyFindsMisrememberedTitleUsingOnlySelectedLibraries() = runBlocking {
         val http = TestHttp { request ->
@@ -40,7 +128,7 @@ class MediaBrowserRequestTest {
         assertEquals("Strefa gangsterów", items.single().preview.name)
         assertEquals("show1", ServerItemRef.parse(items.single().preview.id)?.itemId)
         val queries = http.requests.filter { it.url.encodedPath.endsWith("/Items") }
-        assertEquals(listOf("Ziemia gangsterów", "gangsterów"), queries.map { it.url.queryParameter("searchTerm") })
+        assertEquals(listOf("Ziemia gangsterów", "gangsterów"), queries.mapNotNull { it.url.queryParameter("searchTerm") })
         assertTrue(queries.all { it.url.queryParameter("parentId") == "only-this" })
     }
 
@@ -52,7 +140,7 @@ class MediaBrowserRequestTest {
         }
         EmbyProvider(http.client, testIdentity).search(session("emby", "https://media.example.com"),
             ServerMediaKind.SERIES, listOf(ServerLibrary("lib1", "Seriale", ServerMediaKind.SERIES)), "Strefa gangsterów", 30)
-        assertEquals(1, http.requests.count { it.url.encodedPath.endsWith("/Items") })
+        assertEquals(1, http.requests.count { it.url.encodedPath.endsWith("/Items") && it.url.queryParameter("searchTerm") != null })
     }
 
     @Test

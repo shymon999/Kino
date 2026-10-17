@@ -790,6 +790,9 @@ class SearchViewModel @Inject constructor(
                 is NetworkResult.Error -> {
                     if (!isCurrentSearch(generation, query)) return@collect
                     pendingCatalogResponses = (pendingCatalogResponses - 1).coerceAtLeast(0)
+                    val key = catalogKey(addon.id, addon.baseUrl, catalog.apiType, catalog.id)
+                    // A failed response must remove its skeleton instead of leaving it forever.
+                    _uiState.update { state -> state.copy(catalogRows = state.catalogRows.filterNot { it.stableKey() == key }) }
                     // Ignore per-catalog errors unless we have nothing to show.
                     if (catalogsMap.isEmpty()) {
                         _uiState.update { it.copy(error = result.message ?: context.getString(com.nuvio.tv.R.string.search_error_failed)) }

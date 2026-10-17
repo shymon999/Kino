@@ -156,8 +156,8 @@ fun CastSection(
             holdRestoreScrollSuppress = false
             return@LaunchedEffect
         }
-        val leadingIndex = leadingCast.indexOfFirst { it.tmdbId == restorePersonId }
-        val castIndex = cast.indexOfFirst { it.tmdbId == restorePersonId }
+        val leadingIndex = leadingCast.indexOfFirst { it.focusId == restorePersonId }
+        val castIndex = cast.indexOfFirst { it.focusId == restorePersonId }
         if (leadingIndex < 0 && castIndex < 0) {
             restorePending = false
             holdRestoreScrollSuppress = false
@@ -266,7 +266,7 @@ fun CastSection(
                 ) { index, member ->
                     val isLastLeading = member == leadingCast.last()
                     val endPadding = if (isLastLeading && cast.isNotEmpty()) NuvioTheme.spacing.none else standardGap
-                    val isRestoreTarget = member.tmdbId == restorePersonId
+                    val isRestoreTarget = member.focusId == restorePersonId
                     val isFirstItem = index == 0
                     val focusKey = "leading:${member.tmdbId ?: member.name}:${member.character.orEmpty()}"
                     val focusRequester = if (isFirstItem) {
@@ -317,7 +317,7 @@ fun CastSection(
                 items = cast,
                 key = { index, member -> castMemberLazyKey(index, member) }
             ) { index, member ->
-                val isRestoreTarget = member.tmdbId == restorePersonId
+                val isRestoreTarget = member.focusId == restorePersonId
                 val isFirstCastItem = index == 0 && leadingCast.isEmpty()
                 val focusKey = "cast:${member.tmdbId ?: member.name}:${member.character.orEmpty()}"
                 val focusRequester = if (isFirstCastItem) {

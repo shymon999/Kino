@@ -56,6 +56,28 @@ class SearchViewModelConcurrencyTest {
     }
 
     @Test
+    fun `failed search removes skeletons and finishes loading`() = runTest {
+        val addon = searchableAddon()
+        val response = CompletableDeferred<Unit>()
+        val repository = mockk<CatalogRepository>()
+        io.mockk.every { repository.getCatalog(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) } returns flow {
+            response.await()
+            emit(NetworkResult.Error("Search timed out"))
+        }
+        val viewModel = newViewModel(GatedAddonRepository(addon, CompletableDeferred(Unit)), repository)
+        viewModel.onEvent(SearchEvent.QueryChanged("nold schwarezenegger"))
+        viewModel.onEvent(SearchEvent.SubmitSearch)
+        runCurrent()
+        assertTrue(viewModel.uiState.value.catalogRows.isNotEmpty())
+        assertTrue(viewModel.uiState.value.isSearching)
+        response.complete(Unit)
+        advanceUntilIdle()
+        assertFalse(viewModel.uiState.value.isSearching)
+        assertTrue(viewModel.uiState.value.catalogRows.isEmpty())
+        assertEquals("Search timed out", viewModel.uiState.value.error)
+    }
+
+    @Test
     fun `older search outer job cannot leave newer multi-word search loading`() = runTest {
         val firstAddonLookup = CompletableDeferred<Unit>()
         val addon = searchableAddon()

@@ -175,8 +175,11 @@ data class MetaCastMember(
     val name: String,
     val character: String? = null,
     val photo: String? = null,
-    val tmdbId: Int? = null
-)
+    val tmdbId: Int? = null,
+    val serverPersonId: String? = null
+) {
+    val focusId: Int? get() = tmdbId ?: serverPersonId?.hashCode()
+}
 
 @Immutable
 data class MetaCompany(

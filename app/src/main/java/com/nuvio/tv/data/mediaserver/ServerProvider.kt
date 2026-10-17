@@ -33,6 +33,8 @@ interface ServerProvider {
 
     suspend fun details(session: ServerSession, itemId: String): ServerItemDetails
 
+    suspend fun personDetails(session: ServerSession, personId: String): com.nuvio.tv.domain.model.PersonDetail = unsupported()
+
     suspend fun candidates(session: ServerSession, itemId: String): List<ServerCandidate>
 
     suspend fun preparePlayback(session: ServerSession, request: ServerPlaybackRequest): ServerPlaybackSession

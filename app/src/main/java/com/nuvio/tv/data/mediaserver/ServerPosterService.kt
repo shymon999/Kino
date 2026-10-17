@@ -21,10 +21,12 @@ import kotlinx.coroutines.withTimeoutOrNull
 class ServerPosterService internal constructor(
     private val api: TmdbApi,
     private val scope: CoroutineScope,
-    private val apiKey: String
+    private val apiKey: String,
+    private val disk: BoundedMetadataDiskCache? = null
 ) {
-    @Inject constructor(api: TmdbApi) : this(
-        api, CoroutineScope(SupervisorJob() + Dispatchers.IO), BuildConfig.TMDB_API_KEY
+    @Inject constructor(api: TmdbApi, metadataCache: ServerMetadataCache) : this(
+        api, CoroutineScope(SupervisorJob() + Dispatchers.IO), BuildConfig.TMDB_API_KEY,
+        metadataCache.disk.takeIf { BuildConfig.FAMILY_BUILD }
     )
 
     private val requests = Semaphore(4)
@@ -63,12 +65,18 @@ class ServerPosterService internal constructor(
 
     private suspend fun fetch(item: MetaPreview, key: String) {
         try {
+            disk?.get<String>("tmdb-pl-v1", key, String::class.java, 24 * 60 * 60_000L)?.let { stored ->
+                synchronized(cache) { cache[key] = stored.value.takeIf { it.isNotBlank() } }
+                if (stored.value.isNotBlank()) mutableUpdates.update { it + 1 }
+                return
+            }
             val found = api.findByExternalId(item.imdbId!!, apiKey)
             if (!found.isSuccessful) return
             val ids = found.body()
             val id = (if (item.apiType == "series") ids?.tvResults else ids?.movieResults)?.firstOrNull()?.id
             if (id == null) {
                 synchronized(cache) { cache[key] = null }
+                disk?.put("tmdb-pl-v1", key, "")
                 return
             }
             val response = if (item.apiType == "series") api.getTvImages(id, apiKey, "pl")
@@ -77,6 +85,7 @@ class ServerPosterService internal constructor(
             val path = response.body()?.posters.orEmpty()
                 .firstOrNull { it.iso6391 == "pl" && !it.filePath.isNullOrBlank() }?.filePath
             synchronized(cache) { cache[key] = path?.let { "https://image.tmdb.org/t/p/w500$it" } }
+            disk?.put("tmdb-pl-v1", key, path?.let { "https://image.tmdb.org/t/p/w500$it" }.orEmpty())
             if (path != null) mutableUpdates.update { it + 1 }
         } catch (error: CancellationException) {
             throw error

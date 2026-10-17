@@ -20,6 +20,7 @@ import javax.inject.Inject
 @HiltViewModel
 class CastDetailViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val serverRepository: com.nuvio.tv.data.mediaserver.ServerRepository,
     private val tmdbMetadataService: TmdbMetadataService,
     private val tmdbSettingsDataStore: TmdbSettingsDataStore,
     private val watchProgressRepository: com.nuvio.tv.domain.repository.WatchProgressRepository,
@@ -29,7 +30,9 @@ class CastDetailViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
-    val personId: Int = savedStateHandle.get<String>("personId")?.toIntOrNull() ?: 0
+    private val personKey: String = savedStateHandle.get<String>("personId").orEmpty()
+    private val serverPerson = com.nuvio.tv.data.mediaserver.ServerItemRef.parse(personKey)
+    val personId: Int = personKey.toIntOrNull() ?: personKey.hashCode()
     val personName: String = (savedStateHandle.get<String>("personName") ?: "").let { raw ->
         runCatching { java.net.URLDecoder.decode(raw, "UTF-8") }.getOrDefault(raw)
     }
@@ -70,7 +73,11 @@ class CastDetailViewModel @Inject constructor(
     private fun loadPersonDetail() {
         viewModelScope.launch {
             try {
-                val detail = tmdbMetadataService.fetchPersonDetail(
+                val detail = if (serverPerson != null) {
+                    serverRepository.call(serverPerson.connectionId) { provider, session ->
+                        provider.personDetails(session, serverPerson.itemId)
+                    }
+                } else tmdbMetadataService.fetchPersonDetail(
                     personId = personId,
                     preferCrewCredits = preferCrew,
                     language = tmdbSettingsDataStore.settings.first().language
@@ -91,6 +98,8 @@ class CastDetailViewModel @Inject constructor(
                         context.getString(R.string.cast_error_load_details_for, personName)
                     )
                 }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 _uiState.value = CastDetailUiState.Error(
                     e.message ?: context.getString(R.string.error_unknown)

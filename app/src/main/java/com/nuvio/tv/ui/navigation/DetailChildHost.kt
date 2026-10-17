@@ -283,7 +283,7 @@ private fun NavBackStackEntry.toSavedChildRoute(): String? {
     val args = arguments ?: return null
     return when (route) {
         Screen.CastDetail.route -> {
-            val personId = args.getString("personId")?.toIntOrNull() ?: return null
+            val personId = args.getString("personId") ?: return null
             val personName = args.getString("personName") ?: return null
             Screen.CastDetail.createRoute(
                 personId = personId,

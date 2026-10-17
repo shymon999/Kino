@@ -8,6 +8,7 @@ import com.nuvio.tv.core.sync.SyncClientIdentity
 import com.nuvio.tv.data.local.ProfileDataStore
 import com.nuvio.tv.data.mediaserver.AndroidServerPersistence
 import com.nuvio.tv.data.mediaserver.ServerRepository
+import com.nuvio.tv.data.mediaserver.ServerMetadataCache
 import com.nuvio.tv.data.mediaserver.emby.EmbyProvider
 import com.nuvio.tv.data.mediaserver.jellyfin.JellyfinProvider
 import com.nuvio.tv.data.mediaserver.mediabrowser.ServerClientIdentity
@@ -32,7 +33,8 @@ object MediaServerModule {
     fun repository(
         persistence: AndroidServerPersistence,
         identity: SyncClientIdentity,
-        profileDataStore: ProfileDataStore
+        profileDataStore: ProfileDataStore,
+        metadataCache: ServerMetadataCache
     ): ServerRepository {
         val http = OkHttpClient.Builder()
             .socketFactory(NoDelaySocketFactory)
@@ -48,7 +50,8 @@ object MediaServerModule {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
         val repository = ServerRepository(
             persistence = persistence,
-            providers = listOf(JellyfinProvider(http, clientIdentity), EmbyProvider(http, clientIdentity)),
+            providers = listOf(JellyfinProvider(http, clientIdentity), EmbyProvider(http, clientIdentity,
+                metadataCache.disk.takeIf { BuildConfig.FAMILY_BUILD }, scope)),
             scope = scope
         )
         scope.launch { profileDataStore.activeProfileId.collect(repository::selectProfile) }

@@ -113,11 +113,13 @@ internal class FakeServerProvider(
             return ServerPlaybackSession(
                 target = request.target,
                 mediaSourceId = request.target.mediaSourceId ?: "default",
-                url = "https://fake.example/${request.target.item.itemId}/master.m3u8?AudioStreamIndex=$audio&SubtitleStreamIndex=$subtitle",
+                url = "https://fake.example/${request.target.item.itemId}/master.m3u8?AudioStreamIndex=$audio&SubtitleStreamIndex=$subtitle&Bitrate=${request.capabilities.maxStreamingBitrate}",
                 headers = emptyMap(),
                 subtitles = emptyList(),
                 playSessionId = "ps$audio",
                 playMethod = ServerPlayMethod.TRANSCODE,
+                maxStreamingBitrate = request.capabilities.maxStreamingBitrate,
+                forceVideoTranscoding = request.capabilities.forceVideoTranscoding,
                 audioTracks = listOf(
                     ServerTrack(index = 1, label = "English", language = "eng", selected = audio == 1),
                     ServerTrack(index = 2, label = "Japanese", language = "jpn", selected = audio == 2)

@@ -272,6 +272,7 @@ fun SearchScreen(
             }
 
             override fun onResults(results: Bundle?) {
+                if (com.nuvio.tv.BuildConfig.FAMILY_BUILD && !isVoiceListening) return
                 isVoiceListening = false
                 voiceRmsLevel = 0f
                 val recognized = results
@@ -415,6 +416,11 @@ fun SearchScreen(
         }
     }
     val handleQueryChanged: (String) -> Unit = { nextQuery ->
+        if (com.nuvio.tv.BuildConfig.FAMILY_BUILD && nextQuery != uiState.query && isVoiceListening) {
+            isVoiceListening = false
+            voiceRmsLevel = 0f
+            speechRecognizer?.cancel()
+        }
         // A real edit is user intent. An IME that re-commits the same text on dismiss is not.
         if (nextQuery != uiState.query) backToFieldLatched = false
         val previousQuery = uiState.query.trim()
@@ -544,6 +550,11 @@ fun SearchScreen(
                 }
             } else if (event == Lifecycle.Event.ON_PAUSE) {
                 isScreenActive = false
+                if (com.nuvio.tv.BuildConfig.FAMILY_BUILD) {
+                    isVoiceListening = false
+                    voiceRmsLevel = 0f
+                    speechRecognizer?.cancel()
+                }
                 keyboardController?.hide()
             }
         }

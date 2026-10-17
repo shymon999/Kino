@@ -18,12 +18,22 @@ class MediaBrowserGenresTest {
     )
 
     @Test
-    fun loadsLibraryScopedGenresForBothProvidersAndKeepsTheirNames() = runTest {
-        val http = TestHttp { """{"Items":[{"Id":"g2","Name":"Science Fiction"},{"Id":"g1","Name":"Akcja"},{"Id":"g3","Name":""}],"TotalRecordCount":3}""" }
+    fun scopesBothProvidersAndUsesPrimaryEmbyShelvesWithAtLeastFourTitles() = runTest {
+        val http = TestHttp { request ->
+            if (request.url.encodedPath.endsWith("/Genres")) {
+                """{"Items":[{"Id":"g2","Name":"Science Fiction"},{"Id":"g1","Name":"Akcja"},{"Id":"g3","Name":""}],"TotalRecordCount":3}"""
+            } else {
+                val items = (1..11).joinToString(",") { index ->
+                    val genre = if (index <= 4) "Action" else if (index <= 8) "Science Fiction" else "Romance"
+                    """{"Id":"s$index","Name":"Title $index","Type":"Series","Genres":["$genre"]}"""
+                }
+                """{"Items":[$items],"TotalRecordCount":11}"""
+            }
+        }
         for (provider in listOf(EmbyProvider(http.client, testIdentity), JellyfinProvider(http.client, testIdentity))) {
             val genres = provider.libraryGenres(session(), ServerLibrary("shows", "Seriale", ServerMediaKind.SERIES))
-            assertEquals(listOf("Akcja", "Science Fiction"), genres.map { it.name })
-            val request = http.requests.last()
+            assertEquals(if (provider.id == "emby") listOf("action", "science fiction") else listOf("Akcja", "Science Fiction"), genres.map { it.name })
+            val request = http.requests.last { it.url.encodedPath.endsWith("/Genres") }
             assertEquals("shows", request.url.queryParameter("parentId"))
             assertEquals("u1", request.url.queryParameter("userId"))
             assertEquals("Series", request.url.queryParameter("includeItemTypes"))
@@ -39,12 +49,12 @@ class MediaBrowserGenresTest {
             if (start == 0) """{"Items":[{"Id":"g1","Name":"Akcja"}],"TotalRecordCount":2}"""
             else """{"Items":[{"Id":"g2","Name":"Komedia"}],"TotalRecordCount":2}"""
         }
-        val provider = EmbyProvider(http.client, testIdentity)
+        val provider = JellyfinProvider(http.client, testIdentity)
         val library = ServerLibrary("movies", "Filmy", ServerMediaKind.MOVIE)
         assertEquals(2, provider.libraryGenres(session(), library).size)
         assertEquals(listOf("0", "1"), http.requests.map { it.url.queryParameter("startIndex") })
         val repeating = TestHttp { """{"Items":[{"Id":"g1","Name":"Akcja"}],"TotalRecordCount":999}""" }
-        assertEquals(1, EmbyProvider(repeating.client, testIdentity).libraryGenres(session(), library).size)
+        assertEquals(1, JellyfinProvider(repeating.client, testIdentity).libraryGenres(session(), library).size)
         assertEquals(2, repeating.requests.size)
     }
 

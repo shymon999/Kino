@@ -47,7 +47,8 @@ internal class MediaBrowserMapper(
         )
     }
 
-    fun title(item: BaseItem): ServerTitle? = preview(item)?.let { ServerTitle(it, item.externalIds()) }
+    fun title(item: BaseItem): ServerTitle? = preview(item)?.let { ServerTitle(it, item.externalIds(), listOfNotNull(item.originalTitle),
+        item.people.filter { person -> person.type == "Actor" || person.type == "Director" || person.type == "Creator" }.mapNotNull { person -> person.name }) }
 
     fun resumeTitle(item: BaseItem): ServerTitle? {
         val preview = resumePreview(item) ?: return null
@@ -95,10 +96,11 @@ internal class MediaBrowserMapper(
             director = item.people.filter { it.type.equals("Director", ignoreCase = true) }.mapNotNull { it.name },
             writer = item.people.filter { it.type.equals("Writer", ignoreCase = true) }.mapNotNull { it.name },
             cast = cast.mapNotNull { it.name },
-            castMembers = cast.map { person ->
+            castMembers = item.people.filter { !it.name.isNullOrBlank() && it.type in listOf("Actor", "Director", "Writer", "Creator") }.map { person ->
                 MetaCastMember(
                     name = person.name.orEmpty(),
-                    character = person.role,
+                    character = if (person.type.equals("Actor", true)) person.role else person.type,
+                    serverPersonId = person.id?.let(::ref),
                     photo = person.id?.let { id -> person.primaryImageTag?.let { image(id, "Primary", it, maxHeight = 300) } }
                 )
             },

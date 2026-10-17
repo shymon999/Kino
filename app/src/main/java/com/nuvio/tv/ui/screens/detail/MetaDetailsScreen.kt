@@ -409,7 +409,7 @@ fun MetaDetailsScreen(
     playOnLoadManually: Boolean = false,
     onBackPress: () -> Unit,
     onReturnFocusConsumed: () -> Unit = {},
-    onNavigateToCastDetail: (personId: Int, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
+    onNavigateToCastDetail: (personId: String, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
     onNavigateToTmdbEntityBrowse: (entityKind: String, entityId: Int, entityName: String, sourceType: String) -> Unit = { _, _, _, _ -> },
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit = { _, _, _ -> },
     onPlayClick: (
@@ -1290,7 +1290,7 @@ private fun MetaDetailsContent(
     restorePlayFocusAfterTrailerBackToken: Int,
     restoreSharedTrailerFocusToken: Int,
     onSharedTrailerFocusRestored: () -> Unit,
-    onNavigateToCastDetail: (personId: Int, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
+    onNavigateToCastDetail: (personId: String, personName: String, preferCrew: Boolean) -> Unit = { _, _, _ -> },
     onNavigateToTmdbEntityBrowse: (entityKind: String, entityId: Int, entityName: String, sourceType: String) -> Unit = { _, _, _, _ -> },
     onNavigateToDetail: (itemId: String, itemType: String, addonBaseUrl: String?) -> Unit = { _, _, _ -> },
     onPosterLongPress: (MetaPreview) -> Unit = {}
@@ -2714,8 +2714,8 @@ private fun MetaDetailsContent(
                                     },
                                     windowResetKey = meta.id,
                                     onCastMemberClick = { member ->
-                                        member.tmdbId?.let { id ->
-                                            markCastMemberRestore(id)
+                                        (member.serverPersonId ?: member.tmdbId?.toString())?.let { id ->
+                                            member.focusId?.let(::markCastMemberRestore)
                                             val preferCrew = member.character.equals("Creator", ignoreCase = true) ||
                                                 member.character.equals("Director", ignoreCase = true) ||
                                                 member.character.equals("Writer", ignoreCase = true)

@@ -252,6 +252,12 @@ class ServerCatalog @Inject constructor(
         }
         val genreRows = genreGroups(connection)
             .filterNot { canonicalServerGenre(it.first().genres.first().name) in setOf("sport", "children", "anime") }
+            .filterNot {
+                val source = it.first()
+                val genre = canonicalServerGenre(source.genres.first().name)
+                (source.library.kind == ServerMediaKind.SERIES && genre in setOf("animation", "musical", "music", "war")) ||
+                    (source.library.kind == ServerMediaKind.MOVIE && genre == "reality")
+            }
             .map { sources ->
                 val source = sources.first()
                 val library = source.library
@@ -283,7 +289,8 @@ class ServerCatalog @Inject constructor(
             id = addonId(connection.id),
             name = provider.displayName,
             displayName = label,
-            version = if (connection.useCatalogMetadata) "metadata" else "native",
+            version = (if (connection.useCatalogMetadata) "metadata" else "native") +
+                (if (connection.providerId == "emby") "-primary-v1" else ""),
             description = null,
             logo = null,
             baseUrl = baseUrl(connection.id),
@@ -369,7 +376,7 @@ class ServerCatalog @Inject constructor(
 
     companion object {
         const val PAGE_SIZE = 50
-        private const val SEARCH_LIMIT = 30
+        private const val SEARCH_LIMIT = 100
         private const val DETAILS_BUFFER = 16
         private const val RESUME_ID = "resume"
         private const val COLLECTION_PREFIX = "collection:"
