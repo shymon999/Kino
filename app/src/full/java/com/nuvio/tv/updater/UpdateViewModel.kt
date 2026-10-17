@@ -49,6 +49,10 @@ class UpdateViewModel @Inject constructor(
 
     init {
         viewModelScope.launch {
+            if (!com.nuvio.tv.core.build.AppFeaturePolicy.inAppUpdatesEnabled) {
+                _uiState.update { it.copy(updateBannerEnabled = false) }
+                return@launch
+            }
             val enabled = updatePreferences.updateBannerEnabled.first()
             val channel = updatePreferences.getOrInitializeUpdateChannel()
             _uiState.update {
@@ -64,6 +68,7 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun checkForUpdates(force: Boolean, showNoUpdateFeedback: Boolean) {
+        if (!com.nuvio.tv.core.build.AppFeaturePolicy.inAppUpdatesEnabled) return
         if (!force && !_uiState.value.updateBannerEnabled) return
 
         updateCheckJob?.cancel()
@@ -175,6 +180,7 @@ class UpdateViewModel @Inject constructor(
     }
 
     fun setUpdateBannerEnabled(enabled: Boolean) {
+        if (!com.nuvio.tv.core.build.AppFeaturePolicy.inAppUpdatesEnabled) return
         val changed = _uiState.value.updateBannerEnabled != enabled
         _uiState.update {
             it.copy(

@@ -2,7 +2,7 @@ package com.nuvio.tv.core.build
 
 object AppFeaturePolicy {
     val pluginsEnabled: Boolean = true
-    val inAppUpdatesEnabled: Boolean = true
+    val inAppUpdatesEnabled: Boolean = com.nuvio.tv.BuildConfig.APPLICATION_ID == "com.nuvio.tv"
     val inAppTrailerPlaybackEnabled: Boolean = true
     val externalTrailerPlaybackEnabled: Boolean = true
     val supportNuvioEnabled: Boolean = true
