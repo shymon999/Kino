@@ -138,7 +138,7 @@ internal data class PlaybackInfoRequest(
     @SerialName("MediaSourceId") val mediaSourceId: String?,
     @SerialName("AudioStreamIndex") val audioStreamIndex: Int? = null,
     @SerialName("SubtitleStreamIndex") val subtitleStreamIndex: Int? = null,
-    @SerialName("MaxStreamingBitrate") val maxStreamingBitrate: Long,
+    @SerialName("MaxStreamingBitrate") val maxStreamingBitrate: Long? = null,
     @SerialName("EnableDirectPlay") val enableDirectPlay: Boolean = true,
     @SerialName("EnableDirectStream") val enableDirectStream: Boolean = true,
     @SerialName("EnableTranscoding") val enableTranscoding: Boolean = true,
@@ -152,7 +152,7 @@ internal data class PlaybackInfoRequest(
 @Serializable
 internal data class DeviceProfile(
     @SerialName("Name") val name: String,
-    @SerialName("MaxStreamingBitrate") val maxStreamingBitrate: Long,
+    @SerialName("MaxStreamingBitrate") val maxStreamingBitrate: Long? = null,
     @SerialName("DirectPlayProfiles") val directPlayProfiles: List<DirectPlayProfile>,
     @SerialName("TranscodingProfiles") val transcodingProfiles: List<TranscodingProfile>,
     @SerialName("SubtitleProfiles") val subtitleProfiles: List<SubtitleProfile>

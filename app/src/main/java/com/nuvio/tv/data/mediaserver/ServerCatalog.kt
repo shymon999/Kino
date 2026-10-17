@@ -25,6 +25,10 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.flowOf
+import com.nuvio.tv.data.local.KinoPreferences
+import com.nuvio.tv.data.local.KinoPreferencesDataStore
 
 data class ServerLibraryRef(
     val connection: ServerConnection,
@@ -48,7 +52,8 @@ class ServerCatalog @Inject constructor(
     @ApplicationContext private val context: Context,
     private val repository: ServerRepository,
     private val addonRepository: AddonRepository,
-    private val serverPosters: ServerPosterService? = null
+    private val serverPosters: ServerPosterService? = null,
+    private val kinoPreferences: KinoPreferencesDataStore? = null
 ) {
     private val localizedContext: Context
         get() = context.withAppLocale()
@@ -83,8 +88,20 @@ class ServerCatalog @Inject constructor(
 
     val detailsLoaded = MutableSharedFlow<ServerItemDetails>(extraBufferCapacity = DETAILS_BUFFER)
 
-    val addons: Flow<List<Addon>> = repository.uiState
-        .map { state -> state.enabledConnections.mapNotNull(::addonFor) }
+    private val familyCuration: Boolean get() = kinoPreferences?.familyBuild ?: true
+
+    fun availableGenres(): List<Pair<String, String>> = repository.enabledConnections()
+        .flatMap { it.selectedLibraries }.flatMap { it.genres }
+        .distinctBy { canonicalServerGenre(it.name) }
+        .map { canonicalServerGenre(it.name) to genreLabel(it.name) }.sortedBy { it.second }
+
+    private fun hiddenUniversalGenre(name: String): Boolean = !familyCuration &&
+        canonicalServerGenre(name) in kinoPreferences?.state?.value?.hiddenGenres.orEmpty()
+
+    val addons: Flow<List<Addon>> = combine(repository.uiState,
+        kinoPreferences?.state ?: flowOf(KinoPreferences())) { state, _ ->
+            state.enabledConnections.mapNotNull(::addonFor)
+        }
         .distinctUntilChanged()
 
     val searchAddons: Flow<List<Addon>> = addons.map { addons ->
@@ -234,7 +251,8 @@ class ServerCatalog @Inject constructor(
         ).takeIf { provider.supports(ServerCapability.USER_STATE_READ) }
         // Keep these libraries selected for search, but omit their automatic rows.
         val catalogs = libraries.filterNot {
-            canonicalServerGenre(it.name) in setOf("children", "anime", "bajki")
+            (familyCuration && canonicalServerGenre(it.name) in setOf("children", "anime", "bajki")) ||
+                hiddenUniversalGenre(it.name)
         }.flatMap { library ->
             val catalog = CatalogDescriptor(
                 type = library.kind.domainType(),
@@ -251,13 +269,14 @@ class ServerCatalog @Inject constructor(
             listOf(catalog)
         }
         val genreRows = genreGroups(connection)
-            .filterNot { canonicalServerGenre(it.first().genres.first().name) in setOf("sport", "children", "anime") }
+            .filterNot { familyCuration && canonicalServerGenre(it.first().genres.first().name) in setOf("sport", "children", "anime") }
             .filterNot {
                 val source = it.first()
                 val genre = canonicalServerGenre(source.genres.first().name)
-                (source.library.kind == ServerMediaKind.SERIES && genre in setOf("animation", "musical", "music", "war")) ||
-                    (source.library.kind == ServerMediaKind.MOVIE && genre == "reality")
+                familyCuration && ((source.library.kind == ServerMediaKind.SERIES && genre in setOf("animation", "musical", "music", "war")) ||
+                    (source.library.kind == ServerMediaKind.MOVIE && genre == "reality"))
             }
+            .filterNot { hiddenUniversalGenre(it.first().genres.first().name) }
             .map { sources ->
                 val source = sources.first()
                 val library = source.library

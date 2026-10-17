@@ -60,7 +60,7 @@ class ServerPlaybackTest {
             repository = repository,
             connection = connection,
             streams = ServerStreams(repository, matcher),
-            playback = ServerPlayback(repository, CoroutineScope(Dispatchers.Unconfined)) { now }
+            playback = ServerPlayback(repository, CoroutineScope(Dispatchers.Unconfined), clock = { now })
         )
     }
 

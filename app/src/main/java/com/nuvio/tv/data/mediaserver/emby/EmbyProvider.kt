@@ -41,7 +41,8 @@ internal class EmbyProvider(
     identity: ServerClientIdentity,
     private val disk: BoundedMetadataDiskCache? = null,
     scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-    now: () -> Long = System::currentTimeMillis
+    now: () -> Long = System::currentTimeMillis,
+    private val familyCuration: Boolean = true
 ) : MediaBrowserProvider(authorizationHeader = "X-Emby-Authorization", apiPath = "/emby", http = http, identity = identity) {
     override val id: String = "emby"
     override val displayName: String = "Emby"
@@ -97,6 +98,7 @@ internal class EmbyProvider(
     }
 
     override suspend fun libraryGenres(session: ServerSession, library: ServerLibrary): List<ServerGenre> {
+        if (!familyCuration) return super.libraryGenres(session, library)
         if (library.kind != ServerMediaKind.MOVIE && library.kind != ServerMediaKind.SERIES) return super.libraryGenres(session, library)
         val original = super.libraryGenres(session, library)
         val counts = indexedTitles(session, library).groupingBy { primaryServerGenre(it, library.kind) }.eachCount()
@@ -108,6 +110,7 @@ internal class EmbyProvider(
     }
 
     override suspend fun libraryPage(session: ServerSession, library: ServerLibrary, start: Int, limit: Int, genreId: String?): ServerPage<ServerTitle> {
+        if (!familyCuration && genreId?.startsWith("primary:") != true) return super.libraryPage(session, library, start, limit, genreId)
         if (genreId == null) return super.libraryPage(session, library, start, limit, null)
         val genre = library.genres.filter { it.id in genreId.split(',') }.map { canonicalServerGenre(it.name) }.distinct().singleOrNull()
             ?: genreId.removePrefix("primary:").takeIf { genreId.startsWith("primary:") }

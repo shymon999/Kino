@@ -2,7 +2,10 @@ package com.nuvio.tv.ui.screens.player
 
 /** A slow, hysteretic controller for single-quality server streams. All times are monotonic. */
 internal class ServerBitratePolicy(private val responsive: Boolean = false) {
-    private val levels = listOf(40, 35, 30, 25, 20, 15, 10).map { it * 1_000_000L }
+    private var ceiling = 40_000_000L
+    private val levels: List<Long> get() =
+        (listOf(100, 80, 60, 40, 35, 30, 25, 20, 15, 10).map { it * 1_000_000L } + ceiling)
+            .filter { it <= ceiling }.distinct().sortedDescending()
     private var target: String? = null
     private var startedAt = 0L
     private var lastChangeAt = 0L
@@ -25,8 +28,10 @@ internal class ServerBitratePolicy(private val responsive: Boolean = false) {
     fun sample(
         key: String, now: Long, positionMs: Long, bufferedMs: Long, buffering: Boolean,
         paused: Boolean, bitrate: Long, requiredBitrate: Long?, bandwidth: Long?, slowSegment: Boolean,
-        bandwidthSampleAt: Long = now
+        bandwidthSampleAt: Long = now,
+        ceilingBitrate: Long = 40_000_000L
     ): Long? {
+        ceiling = ceilingBitrate.coerceIn(10_000_000L, Int.MAX_VALUE.toLong())
         if (target != key) {
             target = key; startedAt = now; lastChangeAt = now
             lowSince = null; stableSince = null; lastPosition = null; failedUpgradeCeiling = null

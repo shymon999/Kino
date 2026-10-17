@@ -220,14 +220,16 @@ internal fun PlayerRuntimeController.adaptServerBitrate(player: androidx.media3.
     val url = currentStreamUrl
     val session = serverPlayback.session(url) ?: return
     if (serverQualityJob?.isActive == true || errorRetryJob?.isActive == true) return
-    val bitrate = session.maxStreamingBitrate ?: 40_000_000L
+    val configuredLimit = serverPlayback.bitrateLimit()
+    val bitrate = session.maxStreamingBitrate ?: session.sourceBitrate ?: 40_000_000L
     val adaptiveGroup = player.currentTracks.groups.any { group ->
         group.type == androidx.media3.common.C.TRACK_TYPE_VIDEO && group.isAdaptiveSupported &&
             (0 until group.length).count { group.isTrackSupported(it) } > 1
     }
     if (adaptiveGroup) {
         // This constrains available representations; it cannot transcode a single file.
-        val cap = (session.requestedVideoBitrate ?: (bitrate - 512_000L)).toInt()
+        val cap = configuredLimit?.minus(512_000L)?.coerceIn(1L, Int.MAX_VALUE.toLong())?.toInt()
+            ?: Int.MAX_VALUE
         if (player.trackSelectionParameters.maxVideoBitrate != cap) {
             player.trackSelectionParameters = player.trackSelectionParameters.buildUpon().setMaxVideoBitrate(cap).build()
         }
@@ -253,7 +255,8 @@ internal fun PlayerRuntimeController.adaptServerBitrate(player: androidx.media3.
         bitrate = bitrate, requiredBitrate = required, bandwidth = bandwidth,
         slowSegment = (serverSlowSegment && now - serverSlowSegmentAt < 15_000) ||
             (serverMediaLoadStartedAt > 0 && now - serverMediaLoadStartedAt > maxOf(8_000L, (serverMediaLoadDuration * 1.2).toLong())),
-        bandwidthSampleAt = serverBandwidthSampleAt
+        bandwidthSampleAt = serverBandwidthSampleAt,
+        ceilingBitrate = configuredLimit ?: maxOf(bitrate, session.sourceBitrate ?: bitrate, 40_000_000L)
     ) ?: return
     serverQualityJob = scope.launch {
         val audioLanguage = player.audioFormat?.language

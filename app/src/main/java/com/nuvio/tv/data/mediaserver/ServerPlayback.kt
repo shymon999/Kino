@@ -17,21 +17,26 @@ import kotlinx.coroutines.withTimeoutOrNull
 class ServerPlayback internal constructor(
     private val repository: ServerRepository,
     private val scope: CoroutineScope,
-    private val clock: () -> Long
+    private val clock: () -> Long,
+    private val configuredBitrate: () -> Long? = { 40_000_000L }
 ) {
     @Inject
-    constructor(repository: ServerRepository) : this(
+    constructor(repository: ServerRepository, preferences: com.nuvio.tv.data.local.KinoPreferencesDataStore) : this(
         repository = repository,
         scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
-        clock = SystemClock::elapsedRealtime
+        clock = SystemClock::elapsedRealtime,
+        configuredBitrate = { preferences.state.value.bitrateBps }
     )
 
     private val lock = Any()
     private val active = mutableMapOf<String, ActivePlayback>()
 
+    fun bitrateLimit(): Long? = configuredBitrate()
+
     suspend fun prepare(target: ServerPlaybackTarget): ServerPlaybackSession {
         val (provider, session, playback) = repository.call(target.item.connectionId) { provider, session ->
-            Triple(provider, session, provider.preparePlayback(session, ServerPlaybackRequest(target, ServerPlayerCapabilities())))
+            Triple(provider, session, provider.preparePlayback(session, ServerPlaybackRequest(target,
+                ServerPlayerCapabilities(maxStreamingBitrate = configuredBitrate()))))
         }
         val orphans = synchronized(lock) {
             val unstarted = active.filterValues { !it.started }.keys.toList()
@@ -101,7 +106,7 @@ class ServerPlayback internal constructor(
     }
 
     suspend fun changeQuality(url: String, bitrate: Long, audioStreamIndex: Int? = null): ServerPlaybackSession? {
-        require(bitrate in 10_000_000L..40_000_000L)
+        require(bitrate in 10_000_000L..Int.MAX_VALUE.toLong())
         val current = synchronized(lock) { active[url] } ?: return null
         return restart(url, current, audioStreamIndex ?: current.playback.audioTracks.selectedIndex(),
             current.playback.burnInSubtitles.selectedIndex(), bitrate, forceVideoTranscoding = true)
@@ -112,7 +117,7 @@ class ServerPlayback internal constructor(
         current: ActivePlayback,
         audioStreamIndex: Int?,
         subtitleStreamIndex: Int?,
-        bitrate: Long = current.playback.maxStreamingBitrate ?: 40_000_000L,
+        bitrate: Long? = current.playback.maxStreamingBitrate,
         forceVideoTranscoding: Boolean = current.playback.forceVideoTranscoding
     ): ServerPlaybackSession? {
         val request = ServerPlaybackRequest(

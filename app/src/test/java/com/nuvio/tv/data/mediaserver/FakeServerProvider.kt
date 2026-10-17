@@ -11,7 +11,8 @@ import kotlinx.coroutines.Dispatchers
 internal class FakeServerProvider(
     private val movieCount: Int = 120,
     private val transcodes: Boolean = false,
-    override val deviceLocalWatchState: Boolean = false
+    override val deviceLocalWatchState: Boolean = false,
+    private val transcodingFallback: Boolean = false
 ) : ServerProvider {
     override val id: String = "fake"
     override val displayName: String = "Fake"
@@ -107,7 +108,7 @@ internal class FakeServerProvider(
 
     override suspend fun preparePlayback(session: ServerSession, request: ServerPlaybackRequest): ServerPlaybackSession {
         playbackRequests += request
-        if (transcodes) {
+        if (transcodes || (transcodingFallback && !request.capabilities.allowDirectPlay)) {
             val audio = request.audioStreamIndex ?: 1
             val subtitle = request.subtitleStreamIndex
             return ServerPlaybackSession(
@@ -137,7 +138,8 @@ internal class FakeServerProvider(
             headers = emptyMap(),
             subtitles = emptyList(),
             playSessionId = null,
-            playMethod = ServerPlayMethod.DIRECT_PLAY
+            playMethod = ServerPlayMethod.DIRECT_PLAY,
+            maxStreamingBitrate = request.capabilities.maxStreamingBitrate
         )
     }
 

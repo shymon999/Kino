@@ -169,7 +169,7 @@ data class ServerPlaybackRequest(
 
 data class ServerPlayerCapabilities(
     val allowDirectPlay: Boolean = true,
-    val maxStreamingBitrate: Long = 40_000_000L,
+    val maxStreamingBitrate: Long? = 40_000_000L,
     val forceVideoTranscoding: Boolean = false
 )
 

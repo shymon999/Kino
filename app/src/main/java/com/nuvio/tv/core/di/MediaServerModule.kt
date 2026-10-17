@@ -51,7 +51,8 @@ object MediaServerModule {
         val repository = ServerRepository(
             persistence = persistence,
             providers = listOf(JellyfinProvider(http, clientIdentity), EmbyProvider(http, clientIdentity,
-                metadataCache.disk.takeIf { BuildConfig.FAMILY_BUILD }, scope)),
+                metadataCache.disk.takeIf { BuildConfig.FAMILY_BUILD }, scope,
+                familyCuration = BuildConfig.FAMILY_BUILD)),
             scope = scope
         )
         scope.launch { profileDataStore.activeProfileId.collect(repository::selectProfile) }
