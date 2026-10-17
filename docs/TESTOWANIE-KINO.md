@@ -19,6 +19,10 @@ Zestawy testów obejmują:
 
 Testy używają atrap i kontrolowanych odpowiedzi HTTP. Nie są próbą transkodowania na dowolnym realnym serwerze. Wybrane zestawy regresji nie oznaczają uruchomienia wszystkich testów upstream.
 
+## Regresja ustawień plakatów
+
+Zapis, usunięcie i ponowne włączenie własnego klucza, błąd zapisu, walidacja API v3, plakat serialu, odpowiedź HTTP 401, powrót do grafiki Emby i spóźnione odpowiedzi po wyłączeniu TMDB są objęte testami kodu. 17.10.2026 regresja full obejmująca te przypadki oraz katalogi, wyszukiwanie i odtwarzanie zakończyła się wynikiem 155 testów / 22 zestawy, bez błędów i pominięć.
+
 ## APK i architektury
 
 Minimalny system wynika z minSdk 24: Android 7. Uniwersalny APK ma zawierać armeabi-v7a, arm64-v8a, x86 i x86_64. Inwentaryzacja bibliotek i zawartości ZIP potwierdza obecność ABI, ale nie uruchomienie na czterech fizycznych urządzeniach.

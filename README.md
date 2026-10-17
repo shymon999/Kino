@@ -1,181 +1,77 @@
 <div align="center">
   <img src="app/src/main/res/drawable-nodpi/kino_banner.png" alt="Kino" width="480" />
   <h1>Kino</h1>
-  <p><strong>Twoja biblioteka Emby. Wygodnie na dużym ekranie.</strong></p>
-  <p>Fork NuvioTV dla Android TV i Google TV</p>
+  <p><strong>Filmy i seriale z Emby na Android TV</strong></p>
   <p>
     <a href="https://github.com/shymon999/Kino/releases"><img alt="Pobierz APK" src="https://img.shields.io/badge/Pobierz-APK-2ea44f?style=for-the-badge&amp;logo=android&amp;logoColor=white" /></a>
-    <a href="LICENSE"><img alt="Licencja GPL-3.0" src="https://img.shields.io/badge/Licencja-GPL--3.0-blue?style=for-the-badge" /></a>
     <img alt="Android 7 i nowszy" src="https://img.shields.io/badge/Android-7.0%2B-3ddc84?style=for-the-badge&amp;logo=android&amp;logoColor=white" />
+    <a href="LICENSE"><img alt="GPL-3.0" src="https://img.shields.io/badge/Licencja-GPL--3.0-blue?style=for-the-badge" /></a>
   </p>
-  <p>
-    <a href="#instalacja">Instalacja</a> ·
-    <a href="#co-potrafi">Funkcje</a> ·
-    <a href="#zrzuty-ekranu">Zrzuty ekranu</a> ·
-    <a href="#ustawienia-kino">Ustawienia</a> ·
-    <a href="docs/ZMIANY-KINO.md">Opis zmian</a> ·
-    <a href="https://github.com/shymon999/Kino/issues">Zgłoś błąd</a>
-  </p>
+  <p><a href="#co-oferuje-kino">Funkcje</a> · <a href="#instalacja">Instalacja</a> · <a href="#polskie-plakaty">Polskie plakaty</a> · <a href="https://github.com/shymon999/Kino/issues">Zgłoś błąd</a></p>
 </div>
 
-Kino jest forkiem [NuvioTV](https://github.com/NuvioMedia/NuvioTV). Zachowuje jego interfejs i odtwarzacz, a rozwija obsługę bibliotek Emby: porządek na głównej, wyszukiwanie tolerujące literówki, lokalne kontynuowanie oglądania i ustawienia jakości.
+Kino to fork [NuvioTV](https://github.com/NuvioMedia/NuvioTV) dostosowany do bibliotek Emby. Do korzystania potrzebujesz własnego konta i adresu serwera Emby.
 
-W wersji uniwersalnej każdy podaje własny adres serwera i konto. Nie ma wbudowanego konta, hasła ani prywatnego klucza TMDB.
+## Co oferuje Kino
 
-> [!NOTE]
-> Pierwsze publiczne wydanie ma status **preview**. Testy kodu i weryfikacja APK przeszły pomyślnie, ale nowy kreator oraz ustawienia wersji uniwersalnej wymagają jeszcze prób na różnych fizycznych TV. Kino nie zawiera filmów ani dostępu do serwera.
+| Funkcja | Działanie |
+| --- | --- |
+| Listy według gatunków | Osobne zakładki Filmy i Seriale, polskie nazwy i scalanie podobnych gatunków. |
+| Własny układ | Ukrywanie gatunków i zmiana kolejności list. Ukryte tytuły pozostają w wyszukiwaniu. |
+| Wyszukiwanie z literówkami | Przybliżone dopasowanie tytułów i nazwisk, także z wyszukiwania głosowego. |
+| Filmografie | Wybierz aktora, aby zobaczyć jego filmy i seriale dostępne na serwerze. |
+| Osobna historia na każdym TV | Dwa telewizory na jednym koncie Emby mają własne „Kontynuuj oglądanie”. |
+| Polskie plakaty | Opcjonalnie z TMDB, po podaniu własnego klucza API. |
+| Oceny przy plakatach | Widoczne przed otwarciem filmu lub serialu. |
+| Losowa kolejność | Inny układ tytułów przy kolejnym uruchomieniu aplikacji. |
+| Wybór bitrate | Domyślnie bez limitu. Możesz ustawić limit lub włączyć automatyczne dostosowanie jakości. |
 
-## Instalacja
+Przykłady wyszukiwania: **„szklanka pulapa” → „Szklana pułapka”**, **„Ziemia gangsterow” → „Strefa gangsterów”**, **„nold schwarezenegger” → filmy z Arnoldem Schwarzeneggerem**.
 
-**[Pobierz Kino-uniwersalna.apk](https://github.com/shymon999/Kino/releases/download/kino-preview-2026.10.17/Kino-uniwersalna.apk)**
+<p align="center"><img src="docs/images/filmy.png" alt="Filmy według gatunków" width="820" /></p>
 
-1. Pobierz APK z [wydań projektu](https://github.com/shymon999/Kino/releases) i przenieś go na telewizor, na przykład aplikacją do przesyłania plików w sieci lokalnej albo przez USB.
-2. Otwórz plik na TV. Jeśli Android o to poprosi, zezwól użytemu menedżerowi plików na instalację z tego źródła.
-3. Uruchom **Kino**, podaj własne dane Emby i wybierz biblioteki.
-
-Jeden plik obsługuje ARM 32-bit, ARM 64-bit, x86 i x86_64. Nie trzeba wybierać bitowości. Kino instaluje się obok oryginalnego NuvioTV. Aktualizacje Kino instaluj na istniejącą aplikację, bez usuwania jej danych.
-
-## Zrzuty ekranu
-
-<p align="center">
-  <img src="docs/images/filmy.png" alt="Zakładka Filmy z rzędami gatunków" width="820" />
-</p>
-
-| Seriale i oceny na plakatach | Filmografia aktora |
+| Seriale | Filmografia |
 | --- | --- |
 | ![Seriale](docs/images/seriale.png) | ![Filmografia](docs/images/filmografia.png) |
 
-Zrzuty z wcześniejszych testów TV pokazują przeglądanie katalogów i filmografię. Nie przedstawiają nowego kreatora ani panelu Ustawienia Kino. Plakaty i zawartość zależą od podłączonego serwera; polskie plakaty z testowej konfiguracji nie są gwarancją polskich grafik na każdym serwerze.
+## Instalacja
 
-## Co potrafi
+1. Pobierz **[Kino-uniwersalna.apk](https://github.com/shymon999/Kino/releases/download/kino-1.0.0/Kino-uniwersalna.apk)**.
+2. Prześlij plik na telewizor przez sieć lokalną lub USB i otwórz go w menedżerze plików. Jeśli TV zapyta, zezwól na instalację z tego źródła.
+3. Uruchom Kino, wpisz adres Emby, nazwę użytkownika i hasło.
+4. Wybierz biblioteki i naciśnij **Zacznij oglądać**.
 
-| Funkcja | Jak działa |
-| --- | --- |
-| Główna, Filmy i Seriale | Osobne zakładki, kontynuowanie oglądania oraz listy gatunków z bibliotek serwera. |
-| Gatunki | Normalizacja podobnych nazw i tłumaczenie zgodne z językiem aplikacji, także na TV z innym językiem systemu. |
-| Własny układ | Wszystkie gatunki są domyślnie dostępne. Można ukrywać wybrane gatunki, pojedyncze rzędy i zmieniać ich kolejność. Anime i treści dziecięce są dostępne. |
-| Wyszukiwanie tytułów | Oprócz zapytania do Emby aplikacja wykorzystuje indeks tytułów i dopasowanie tolerujące błędy. |
-| Aktorzy i filmografie | Można wyszukać osobę albo wejść w obsadę i zobaczyć jej tytuły dostępne na podłączonym serwerze. |
-| Historia lokalna | Postęp oglądania jest oddzielny dla instalacji. Dwa TV ze wspólnym kontem Emby mogą mieć własne kontynuowanie oglądania. |
-| Jakość | Domyślnie bez limitu bitrate. Dostępne limity od 10 do 100 Mb/s i opcjonalna automatyczna adaptacja. |
-| Plakaty i oceny | Plakaty oraz oceny pochodzą z Emby. Widoczność ocen na plakatach można zmienić. |
-| Losowanie | Kolejność zmienia się między uruchomieniami, a podczas przeglądania stronicowanie zachowuje wspólny seed. |
-| Pilot i głos | Interfejs jest przeznaczony do pilota. Dostępność rozpoznawania mowy zależy od TV i pilota; dopasowanie działa też na tekście wpisanym ręcznie. |
-
-## Wyszukiwanie z literówkami
-
-Przykłady sprawdzone na bibliotece testowej:
-
-| Wpisane zapytanie | Przykład dopasowania |
-| --- | --- |
-| `szklanka pulapa` | Tytuły z serii „Szklana pułapka”. |
-| `Ziemia gangsterow` | „Strefa gangsterów”. |
-| `nold schwarezenegger` | Filmy z Arnoldem Schwarzeneggerem. |
-| `Bruce Willis` | Dostępne na serwerze filmy z tym aktorem. |
-
-Wyniki zależą od zawartości bibliotek i metadanych Emby. Mechanizm ogranicza fałszywe dopasowania, nie poprawia dowolnej błędnej nazwy. Pierwsze wyszukiwanie z błędami w dużej bibliotece może wymagać zbudowania indeksu; kolejne korzystają z pamięci podręcznej. Nowe pozycje nie wymagają aktualizacji APK, indeks odświeża się okresowo.
-
-## Pierwsze uruchomienie
-
-1. Podaj adres Emby, na przykład `https://emby.example.com`, nazwę użytkownika i hasło.
-2. Wybierz biblioteki, które chcesz przeglądać.
-3. Wybierz **Zacznij oglądać**.
-
-Konto Nuvio nie jest wymagane do podłączenia Emby. Dane połączenia są przechowywane przez istniejący mechanizm poświadczeń aplikacji. Przy aktualizacji zachowywane są dotychczasowe połączenia i ustawienia.
+Wymagany **Android TV lub Google TV z Androidem 7.0 lub nowszym**. Jeden APK obsługuje urządzenia 32- i 64-bitowe. Kino instaluje się obok oryginalnego NuvioTV. Aktualizację instaluj bez odinstalowywania poprzedniej wersji.
 
 ## Ustawienia Kino
 
-W ustawieniach aplikacji pierwsza sekcja **Ustawienia Kino** zbiera:
+- **Maksymalny bitrate:** bez limitu lub 10, 15, 20, 25, 30, 40, 60, 80, 100 Mb/s. Zmiana dotyczy kolejnego uruchamianego filmu lub odcinka.
+- **Automatyczna jakość:** dostosowanie do łącza. Funkcja eksperymentalna, domyślnie wyłączona. Wymaga transkodowania na serwerze i może na chwilę przerwać obraz.
+- **Ukryj listy gatunków:** wybierz niepotrzebne kategorie. Anime i treści dla dzieci są domyślnie dostępne.
+- **Widoczność i kolejność list:** ustaw własną kolejność rzędów filmów i seriali.
+- **Oceny przy plakatach:** włącz lub wyłącz. Oceny pochodzą z Emby.
+- **Serwery mediów:** zmień konto lub wybór bibliotek.
 
-- **Maksymalny bitrate:** Bez limitu, 10, 15, 20, 25, 30, 40, 60, 80 lub 100 Mb/s. Zmiana jest odczytywana przy uruchamianiu tytułu. „Bez limitu” pomija ograniczenie bitrate w żądaniu do Emby.
-- **Automatyczna jakość:** osobny, domyślnie wyłączony przełącznik.
-- **Ukryj listy gatunków:** ukrywanie wspólne dla wybranych gatunków. Tytuły pozostają dostępne w wyszukiwaniu.
-- **Widoczność i kolejność list:** osobne sterowanie poszczególnymi rzędami filmów i seriali.
-- **Oceny przy plakatach:** włączenie albo wyłączenie oznaczeń ocen.
-- **Serwery mediów:** konta, biblioteki i odświeżanie ich danych.
+Język aplikacji, dźwięk i napisy znajdziesz w pozostałych sekcjach ustawień.
 
-Pozostałe ustawienia NuvioTV, w tym język aplikacji, dźwięk, napisy i wygląd, pozostają dostępne w swoich sekcjach.
+## Polskie plakaty
 
-### Jakość i transkodowanie
+1. Na komputerze zaloguj się do [TMDB i pobierz klucz API](https://developer.themoviedb.org/docs/getting-started): ustawienia konta → API. Potrzebny jest **klucz API v3**, a nie token dostępu.
+2. W Kino otwórz **Ustawienia Kino → Plakaty** i wpisz klucz.
+3. Włącz **Polskie plakaty TMDB** i zapisz.
 
-Bez limitu aplikacja może odtwarzać materiał bezpośrednio, jeśli TV obsługuje jego format. Limit jest przekazywany do Emby; uprawnienia konta i ustawienia serwera nadal obowiązują. Nominalny bitrate nie jest pomiarem chwilowego transferu sieci.
+Jeśli nie ma polskiego plakatu, Kino zostawi grafikę Emby. Klucz można usunąć w tym samym miejscu. Filmy, seriale i opisy nadal pochodzą z Emby.
 
-**Automatyczna jakość jest funkcją eksperymentalną.** Korzysta z bufora i pomiarów pobierania. Przy odpowiedzi HLS z jednym wariantem zmiana wymaga nowej sesji transkodowania i może spowodować krótką przerwę. Wymagane są uprawnienia serwera do transkodowania. Nie ma gwarancji zachowania HDR ani natychmiastowego usunięcia zacięć przy nagłym spadku prędkości.
+## Historia i aktualizacje
 
-Oceny na kartach pochodzą z metadanych Emby. Sama wartość `CommunityRating` nie gwarantuje, że jej dostawcą jest IMDb. Uniwersalny APK używa plakatów serwera; prywatny klucz TMDB nie jest do niego dołączany.
+Postęp oglądania jest zapisany na danym telewizorze. Nie przenosi się na inne TV; usunięcie danych aplikacji usuwa też ten postęp.
 
-## Telewizory i architektury
+Aktualizacje pobierzesz z **[wydań Kino](https://github.com/shymon999/Kino/releases)**. Obecna wersja: **1.0.0**.
 
-- Android TV / Google TV, minimum **Android 7, API 24**.
-- Uniwersalny APK obejmuje **armeabi-v7a, arm64-v8a, x86 i x86_64**. Android wybiera właściwe biblioteki.
-- Tizen i webOS wymagają innej aplikacji.
+## Zgłaszanie błędów
 
-Obsługa architektury nie jest gwarancją działania każdego kodeka na każdym modelu TV. Pamięć urządzenia, dekodery, wersja Androida oraz możliwości transkodowania Emby wpływają na odtwarzanie. Nowa wersja uniwersalna wymaga jeszcze prób na różnych fizycznych odbiornikach.
+[Zgłoś problem](https://github.com/shymon999/Kino/issues/new/choose), podając model TV, wersję Androida i opis sytuacji. Nie dołączaj hasła ani tokenu konta.
 
-## Budowanie
+## Autorzy i licencja
 
-Projekt używa Gradle Wrapper. Lokalnie używany jest JDK 21 i Android SDK zgodny z konfiguracją projektu. Do budowy wersji uniwersalnej nie są potrzebne prywatne dane wariantu rodzinnego.
-
-```powershell
-git clone --branch emby-gatunki https://github.com/shymon999/Kino.git
-cd Kino
-```
-
-Przykład lokalnego kandydata podpisanego kluczem diagnostycznym w PowerShell:
-
-```powershell
-$env:CI_USE_DEBUG_SIGNING = 'true'
-.\gradlew.bat :app:assembleFullRelease --no-parallel --max-workers=1
-```
-
-Bez `-PembyAbi` Gradle przygotowuje paczki poszczególnych architektur oraz APK uniwersalny w `app/build/outputs/apk/full/release/`. Wariant przeznaczony do udostępniania powinien mieć własny, stały podpis; kolejne aktualizacje wymagają tego samego klucza.
-
-Wariant `family` jest osobną konfiguracją prywatną z własnym identyfikatorem aplikacji. Nie jest wymagany do budowy `full`, a jego dane połączenia pozostają poza repozytorium. Publicznie udostępniaj wariant uniwersalny.
-
-## Aktualizacje i testowanie
-
-Na tym etapie aktualizacje Kino instaluje się ręcznie, z zachowaniem podpisu i danych aplikacji. Mechanizm pobierania aktualizacji oryginalnego Nuvio jest wyłączony dla pakietu forka.
-
-Opis techniczny zmian: [Różnice względem NuvioTV](docs/ZMIANY-KINO.md). Zakres potwierdzeń i plan prób: [Testowanie](docs/TESTOWANIE-KINO.md).
-
-## Pytania i odpowiedzi
-
-<details>
-<summary><strong>Czy potrzebuję konta Nuvio albo klucza TMDB?</strong></summary>
-
-Do pierwszego startu wystarczą adres Emby i własne konto. Metadane i grafiki w publicznej paczce pochodzą z serwera. Konto Nuvio i prywatny klucz TMDB nie są wymagane do tego sposobu używania Kino.
-
-</details>
-
-<details>
-<summary><strong>Czy dwa TV na jednym koncie mają wspólne kontynuowanie oglądania?</strong></summary>
-
-Kino prowadzi postęp lokalnie dla każdej instalacji. Dwa telewizory mogą korzystać z jednego konta Emby i mieć oddzielną historię. Usunięcie danych aplikacji usuwa lokalny postęp.
-
-</details>
-
-<details>
-<summary><strong>Czy anime i treści dla dzieci są usunięte?</strong></summary>
-
-W publicznej wersji wszystkie gatunki są domyślnie dostępne. Wybierz te, których list nie chcesz oglądać, w Ustawienia Kino. Ukryte tytuły nadal można znaleźć w wyszukiwaniu.
-
-</details>
-
-<details>
-<summary><strong>Czy jakość sama spada przy wolniejszym internecie?</strong></summary>
-
-Samo ustawienie limitu nie włącza adaptacji. Służy do tego osobny, eksperymentalny przełącznik Automatyczna jakość. Działanie zależy od transkodowania na serwerze, a zmiana może przerwać obraz na chwilę. Domyślnie adaptacja jest wyłączona, a limit nie jest narzucony.
-
-</details>
-
-## Zgłaszanie błędów i rozwój
-
-W [zgłoszeniu](https://github.com/shymon999/Kino/issues/new/choose) podaj wersję Kino, model TV, wersję Androida, typ połączenia i kroki odtworzenia błędu. Dla problemów z odtwarzaniem dodaj format wideo/audio i informację o transkodowaniu. Usuń z logów hasła, tokeny, adresy prywatnych serwerów i dane konta.
-
-Zmiany specyficzne dla Emby są utrzymywane jako osobne commity na gałęzi `emby-gatunki`, aby ułatwić późniejsze pobieranie zmian z NuvioTV. Procesy automatyzacji odziedziczone po upstream nie są skonfigurowanym systemem wydań Kino. Publiczne APK są na razie przygotowywane i sprawdzane lokalnie.
-
-## Projekt bazowy i podziękowania
-
-Kino korzysta z kodu, interfejsu, odtwarzacza i bibliotek projektu [NuvioTV autorstwa NuvioMedia](https://github.com/NuvioMedia/NuvioTV). Informacje licencyjne pozostają w [LICENSE](LICENSE), odpowiednich plikach projektu i ekranie **Licencje i podziękowania** w aplikacji.
-
-Kod jest udostępniany na licencji **GPL-3.0**, zgodnie z projektem bazowym. Kino jest niezależnym forkiem i nie jest oficjalną aplikacją NuvioMedia ani Emby. Grafiki filmów i seriali należą do ich właścicieli.
+Kino bazuje na [NuvioTV autorstwa NuvioMedia](https://github.com/NuvioMedia/NuvioTV). Kod jest udostępniany na licencji [GPL-3.0](LICENSE). To niezależny fork, bez oficjalnego powiązania z NuvioMedia i Emby.

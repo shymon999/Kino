@@ -8,7 +8,7 @@ Zakładki Główna, Filmy i Seriale prezentują biblioteki podłączonego serwer
 
 Uniwersalny wariant korzysta z pełnych gatunków serwera. Nie wymaga minimalnej liczby tytułów w gatunku i nie stosuje prywatnego wykluczania anime, dzieci ani sportu. Użytkownik może ukrywać gatunki oraz sterować widocznością i kolejnością poszczególnych rzędów. Ukrycie rzędu nie usuwa tytułów z wyszukiwania. Nowe pozycje są pobierane z serwera przy odświeżaniu danych, bez przebudowy APK.
 
-Losowanie katalogów wykorzystuje seed sesji, aby kolejne strony przeglądanej listy zachowywały spójne zapytanie. Metadane, plakaty i oceny w uniwersalnej paczce pochodzą z Emby. Ocena CommunityRating nie oznacza automatycznie oceny IMDb.
+Losowanie katalogów wykorzystuje seed sesji, aby kolejne strony przeglądanej listy zachowywały spójne zapytanie. Metadane i oceny pochodzą z Emby. Plakaty domyślnie pochodzą z Emby; opcjonalnie użytkownik może włączyć polskie plakaty TMDB i podać własny klucz API v3. Ocena CommunityRating nie oznacza automatycznie oceny IMDb.
 
 ## Wyszukiwanie
 
@@ -38,7 +38,7 @@ Sekcja Ustawienia Kino skupia opcje forka. Ekran O Kino wskazuje projekt bazowy 
 
 ## Warianty i prywatność paczek
 
-Wariant full jest uniwersalny i nie zawiera prywatnego konta Emby ani prywatnego klucza TMDB. Wariant family jest odrębną prywatną dystrybucją, z innym identyfikatorem i konfiguracją poza repo. Jej domyślny limit 40 Mb/s i prywatny dobór kategorii nie są ustawieniami wersji uniwersalnej.
+Wariant full jest uniwersalny i nie zawiera prywatnego konta Emby ani prywatnego klucza TMDB. Własny klucz podany w ustawieniach plakatów jest przechowywany lokalnie w ProtectedProfilePreferences z szyfrowaniem Android Keystore. Można go usunąć lub wyłączyć TMDB bez usuwania klucza. Zmiana źródła odświeża istniejące rzędy i przywraca plakat Emby. Wariant family jest odrębną prywatną dystrybucją, z innym identyfikatorem i konfiguracją poza repo. Jej domyślny limit 40 Mb/s i prywatny dobór kategorii nie są ustawieniami wersji uniwersalnej.
 
 Konfiguracja użytkownika nie jest przenoszona przez wysłanie samego APK. Każda instalacja uniwersalna wymaga własnego logowania. Pliki podpisu, local.properties i prywatne dane wdrożenia nie służą do publikacji.
 
