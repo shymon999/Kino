@@ -1,6 +1,7 @@
 package com.nuvio.tv.data.mediaserver
 
 import android.content.Context
+import com.nuvio.tv.core.util.withAppLocale
 import com.nuvio.tv.R
 import com.nuvio.tv.ui.util.localizedGenreLabel
 import com.nuvio.tv.core.streams.supportsResource
@@ -49,6 +50,9 @@ class ServerCatalog @Inject constructor(
     private val addonRepository: AddonRepository,
     private val serverPosters: ServerPosterService? = null
 ) {
+    private val localizedContext: Context
+        get() = context.withAppLocale()
+
     val posterUpdates: Flow<Long> get() = serverPosters?.updates ?: kotlinx.coroutines.flow.emptyFlow()
 
     fun cachedPosters(row: CatalogRow): CatalogRow =
@@ -224,7 +228,7 @@ class ServerCatalog @Inject constructor(
         val resume = CatalogDescriptor(
             type = ContentType.MOVIE,
             id = RESUME_ID,
-            name = context.getString(R.string.servers_resume_row),
+            name = localizedContext.getString(R.string.servers_resume_row),
             showInHome = true,
             hasExplicitShowInHome = true
         ).takeIf { provider.supports(ServerCapability.USER_STATE_READ) }
@@ -252,7 +256,7 @@ class ServerCatalog @Inject constructor(
                 val source = sources.first()
                 val library = source.library
                 val genre = source.genres.first()
-                val sectionName = if (sources.size == 1) library.name else context.getString(
+                val sectionName = if (sources.size == 1) library.name else localizedContext.getString(
                     if (library.kind == ServerMediaKind.SERIES) R.string.nav_series else R.string.nav_movies
                 )
                 CatalogDescriptor(
@@ -270,7 +274,7 @@ class ServerCatalog @Inject constructor(
                     type = kind.domainType(),
                     rawType = kind.contentType,
                     id = SEARCH_PREFIX + kind.contentType,
-                    name = context.getString(kind.searchLabel()),
+                    name = localizedContext.getString(kind.searchLabel()),
                     extra = listOf(CatalogExtra(name = "search", isRequired = true))
                 )
             }
@@ -290,7 +294,7 @@ class ServerCatalog @Inject constructor(
     }
 
     private fun genreLabel(name: String): String = localizedGenreLabel(
-        context,
+        localizedContext,
         if (canonicalServerGenre(name) == "science fiction") "Science Fiction" else name
     )
 
