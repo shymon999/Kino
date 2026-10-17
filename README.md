@@ -1,14 +1,51 @@
 <div align="center">
   <img src="app/src/main/res/drawable-nodpi/kino_banner.png" alt="Kino" width="480" />
+  <h1>Kino</h1>
+  <p><strong>Twoja biblioteka Emby. Wygodnie na dużym ekranie.</strong></p>
+  <p>Fork NuvioTV dla Android TV i Google TV</p>
+  <p>
+    <a href="https://github.com/shymon999/Kino/releases"><img alt="Pobierz APK" src="https://img.shields.io/badge/Pobierz-APK-2ea44f?style=for-the-badge&amp;logo=android&amp;logoColor=white" /></a>
+    <a href="LICENSE"><img alt="Licencja GPL-3.0" src="https://img.shields.io/badge/Licencja-GPL--3.0-blue?style=for-the-badge" /></a>
+    <img alt="Android 7 i nowszy" src="https://img.shields.io/badge/Android-7.0%2B-3ddc84?style=for-the-badge&amp;logo=android&amp;logoColor=white" />
+  </p>
+  <p>
+    <a href="#instalacja">Instalacja</a> ·
+    <a href="#co-potrafi">Funkcje</a> ·
+    <a href="#zrzuty-ekranu">Zrzuty ekranu</a> ·
+    <a href="#ustawienia-kino">Ustawienia</a> ·
+    <a href="docs/ZMIANY-KINO.md">Opis zmian</a> ·
+    <a href="https://github.com/shymon999/Kino/issues">Zgłoś błąd</a>
+  </p>
 </div>
-
-# Kino
-
-**Filmy i seriale z Emby na Android TV, z listami gatunków i prostą obsługą pilotem.**
 
 Kino jest forkiem [NuvioTV](https://github.com/NuvioMedia/NuvioTV). Zachowuje jego interfejs i odtwarzacz, a rozwija obsługę bibliotek Emby: porządek na głównej, wyszukiwanie tolerujące literówki, lokalne kontynuowanie oglądania i ustawienia jakości.
 
 W wersji uniwersalnej każdy podaje własny adres serwera i konto. Nie ma wbudowanego konta, hasła ani prywatnego klucza TMDB.
+
+> [!NOTE]
+> Pierwsze publiczne wydanie ma status **preview**. Testy kodu i weryfikacja APK przeszły pomyślnie, ale nowy kreator oraz ustawienia wersji uniwersalnej wymagają jeszcze prób na różnych fizycznych TV. Kino nie zawiera filmów ani dostępu do serwera.
+
+## Instalacja
+
+**[Pobierz Kino-uniwersalna.apk](https://github.com/shymon999/Kino/releases/download/kino-preview-2026.10.17/Kino-uniwersalna.apk)**
+
+1. Pobierz APK z [wydań projektu](https://github.com/shymon999/Kino/releases) i przenieś go na telewizor, na przykład aplikacją do przesyłania plików w sieci lokalnej albo przez USB.
+2. Otwórz plik na TV. Jeśli Android o to poprosi, zezwól użytemu menedżerowi plików na instalację z tego źródła.
+3. Uruchom **Kino**, podaj własne dane Emby i wybierz biblioteki.
+
+Jeden plik obsługuje ARM 32-bit, ARM 64-bit, x86 i x86_64. Nie trzeba wybierać bitowości. Kino instaluje się obok oryginalnego NuvioTV. Aktualizacje Kino instaluj na istniejącą aplikację, bez usuwania jej danych.
+
+## Zrzuty ekranu
+
+<p align="center">
+  <img src="docs/images/filmy.png" alt="Zakładka Filmy z rzędami gatunków" width="820" />
+</p>
+
+| Seriale i oceny na plakatach | Filmografia aktora |
+| --- | --- |
+| ![Seriale](docs/images/seriale.png) | ![Filmografia](docs/images/filmografia.png) |
+
+Zrzuty z wcześniejszych testów TV pokazują przeglądanie katalogów i filmografię. Nie przedstawiają nowego kreatora ani panelu Ustawienia Kino. Plakaty i zawartość zależą od podłączonego serwera; polskie plakaty z testowej konfiguracji nie są gwarancją polskich grafik na każdym serwerze.
 
 ## Co potrafi
 
@@ -79,6 +116,11 @@ Obsługa architektury nie jest gwarancją działania każdego kodeka na każdym 
 
 Projekt używa Gradle Wrapper. Lokalnie używany jest JDK 21 i Android SDK zgodny z konfiguracją projektu. Do budowy wersji uniwersalnej nie są potrzebne prywatne dane wariantu rodzinnego.
 
+```powershell
+git clone --branch emby-gatunki https://github.com/shymon999/Kino.git
+cd Kino
+```
+
 Przykład lokalnego kandydata podpisanego kluczem diagnostycznym w PowerShell:
 
 ```powershell
@@ -96,6 +138,44 @@ Na tym etapie aktualizacje Kino instaluje się ręcznie, z zachowaniem podpisu i
 
 Opis techniczny zmian: [Różnice względem NuvioTV](docs/ZMIANY-KINO.md). Zakres potwierdzeń i plan prób: [Testowanie](docs/TESTOWANIE-KINO.md).
 
+## Pytania i odpowiedzi
+
+<details>
+<summary><strong>Czy potrzebuję konta Nuvio albo klucza TMDB?</strong></summary>
+
+Do pierwszego startu wystarczą adres Emby i własne konto. Metadane i grafiki w publicznej paczce pochodzą z serwera. Konto Nuvio i prywatny klucz TMDB nie są wymagane do tego sposobu używania Kino.
+
+</details>
+
+<details>
+<summary><strong>Czy dwa TV na jednym koncie mają wspólne kontynuowanie oglądania?</strong></summary>
+
+Kino prowadzi postęp lokalnie dla każdej instalacji. Dwa telewizory mogą korzystać z jednego konta Emby i mieć oddzielną historię. Usunięcie danych aplikacji usuwa lokalny postęp.
+
+</details>
+
+<details>
+<summary><strong>Czy anime i treści dla dzieci są usunięte?</strong></summary>
+
+W publicznej wersji wszystkie gatunki są domyślnie dostępne. Wybierz te, których list nie chcesz oglądać, w Ustawienia Kino. Ukryte tytuły nadal można znaleźć w wyszukiwaniu.
+
+</details>
+
+<details>
+<summary><strong>Czy jakość sama spada przy wolniejszym internecie?</strong></summary>
+
+Samo ustawienie limitu nie włącza adaptacji. Służy do tego osobny, eksperymentalny przełącznik Automatyczna jakość. Działanie zależy od transkodowania na serwerze, a zmiana może przerwać obraz na chwilę. Domyślnie adaptacja jest wyłączona, a limit nie jest narzucony.
+
+</details>
+
+## Zgłaszanie błędów i rozwój
+
+W [zgłoszeniu](https://github.com/shymon999/Kino/issues/new/choose) podaj wersję Kino, model TV, wersję Androida, typ połączenia i kroki odtworzenia błędu. Dla problemów z odtwarzaniem dodaj format wideo/audio i informację o transkodowaniu. Usuń z logów hasła, tokeny, adresy prywatnych serwerów i dane konta.
+
+Zmiany specyficzne dla Emby są utrzymywane jako osobne commity na gałęzi `emby-gatunki`, aby ułatwić późniejsze pobieranie zmian z NuvioTV. Procesy automatyzacji odziedziczone po upstream nie są skonfigurowanym systemem wydań Kino. Publiczne APK są na razie przygotowywane i sprawdzane lokalnie.
+
 ## Projekt bazowy i podziękowania
 
 Kino korzysta z kodu, interfejsu, odtwarzacza i bibliotek projektu [NuvioTV autorstwa NuvioMedia](https://github.com/NuvioMedia/NuvioTV). Informacje licencyjne pozostają w [LICENSE](LICENSE), odpowiednich plikach projektu i ekranie **Licencje i podziękowania** w aplikacji.
+
+Kod jest udostępniany na licencji **GPL-3.0**, zgodnie z projektem bazowym. Kino jest niezależnym forkiem i nie jest oficjalną aplikacją NuvioMedia ani Emby. Grafiki filmów i seriali należą do ich właścicieli.
