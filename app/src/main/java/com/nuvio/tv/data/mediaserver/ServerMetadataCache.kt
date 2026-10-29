@@ -2,6 +2,7 @@ package com.nuvio.tv.data.mediaserver
 
 import android.content.Context
 import com.google.gson.Gson
+import com.nuvio.tv.BuildConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import java.io.ByteArrayOutputStream
 import java.io.DataInputStream
@@ -16,9 +17,11 @@ import javax.inject.Singleton
 
 @Singleton
 class ServerMetadataCache @Inject constructor(@ApplicationContext context: Context) {
-    internal val disk = BoundedMetadataDiskCache(File(context.cacheDir, "server_metadata_v1"), report = { bytes, entries ->
-        android.util.Log.i("KinoMetadataCache", "bytes=$bytes entries=$entries limitBytes=67108864")
-    })
+    // Statistics rescan the directory, so release builds skip them on every poster and metadata write.
+    internal val disk = BoundedMetadataDiskCache(File(context.cacheDir, "server_metadata_v1"),
+        report = { bytes: Long, entries: Int ->
+            android.util.Log.i("KinoMetadataCache", "bytes=$bytes entries=$entries limitBytes=67108864")
+        }.takeIf { BuildConfig.DEBUG })
 }
 
 /** Disposable metadata only. The shared budget includes library, detail, person and poster entries. */
@@ -28,7 +31,7 @@ internal class BoundedMetadataDiskCache(
     private val maxEntries: Int = 512,
     private val now: () -> Long = System::currentTimeMillis,
     private val reserveBytes: Long = 16L * 1024 * 1024,
-    private val report: (Long, Int) -> Unit = { _, _ -> }
+    private val report: ((Long, Int) -> Unit)? = null
 ) {
     data class Entry<T>(val value: T, val storedAt: Long)
     private val gson = Gson()
@@ -119,6 +122,7 @@ internal class BoundedMetadataDiskCache(
     fun sizeBytes(): Long = directory.listFiles().orEmpty().filter { it.isFile }.sumOf { it.length() }
 
     private fun reportStats() {
+        val report = report ?: return
         val files = directory.listFiles().orEmpty().filter { it.isFile }
         report(files.sumOf { it.length() }, files.size)
     }
