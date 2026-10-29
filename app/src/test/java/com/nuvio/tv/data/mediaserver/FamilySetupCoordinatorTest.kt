@@ -1,6 +1,8 @@
 package com.nuvio.tv.data.mediaserver
 
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -19,7 +21,9 @@ class FamilySetupCoordinatorTest {
         var failure: ServerFailure? = null
         var delayMs = 0L
         var nextValidationFailure: ServerFailure? = null
+        var validationDelayMs = 0L
         override suspend fun libraries(session: ServerSession): List<ServerLibrary> {
+            delay(validationDelayMs)
             nextValidationFailure?.let { failure ->
                 nextValidationFailure = null
                 throw ServerException(failure)
@@ -119,7 +123,7 @@ class FamilySetupCoordinatorTest {
         assertNull(setup.state.value.failure)
     }
 
-    @Test fun networkFailureDoesNotReplaceSavedCredentialsOrTriggerSignIn() = runTest {
+    @Test fun networkFailureKeepsSavedSessionWithoutBlockingStartup() = runTest {
         val provider = ProvisionProvider()
         val repository = ServerRepository(MemoryServerPersistence(), listOf(provider), backgroundScope)
         val setup = FamilySetupCoordinator(repository, credentials, {})
@@ -129,6 +133,33 @@ class FamilySetupCoordinatorTest {
         setup.prepare()
         assertEquals(1, provider.attempts)
         assertEquals(original, repository.enabledConnections().single())
-        assertEquals(ServerFailure.UNREACHABLE, setup.state.value.failure)
+        assertFalse(setup.state.value.loading)
+        assertNull(setup.state.value.failure)
+    }
+
+    @Test fun savedSessionOpensBeforeSlowServerCheckFinishes() = runTest {
+        val provider = ProvisionProvider()
+        val repository = ServerRepository(MemoryServerPersistence(), listOf(provider), backgroundScope)
+        val setup = FamilySetupCoordinator(repository, credentials, {}, timeoutMs = 1_000)
+        setup.prepare()
+        provider.validationDelayMs = 5_000
+        val check = launch { setup.prepare() }
+        runCurrent()
+        assertFalse(setup.state.value.loading)
+        check.join()
+        assertNull(setup.state.value.failure)
+        assertEquals(1, provider.attempts)
+    }
+
+    @Test fun rejectedSessionForDifferentAccountStillReportsAuthentication() = runTest {
+        val provider = ProvisionProvider()
+        val repository = ServerRepository(MemoryServerPersistence(), listOf(provider), backgroundScope)
+        FamilySetupCoordinator(repository, credentials, {}).prepare()
+        provider.nextValidationFailure = ServerFailure.AUTH_REQUIRED
+        val changed = FamilyCredentials(credentials.address, "another-viewer", credentials.password)
+        val setup = FamilySetupCoordinator(repository, changed, {})
+        setup.prepare()
+        assertEquals(1, provider.attempts)
+        assertEquals(ServerFailure.AUTH_REQUIRED, setup.state.value.failure)
     }
 }

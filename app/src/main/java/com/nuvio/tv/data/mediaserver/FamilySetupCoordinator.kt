@@ -27,6 +27,9 @@ class FamilySetupCoordinator(
 
     suspend fun prepare() = mutex.withLock {
         mutableState.value = FamilySetupState()
+        // A saved session opens the app at once. Only a renewal that fails afterwards blocks it.
+        var resumed = false
+        var renewing = false
         try {
             withTimeout(timeoutMs) {
                 applyDefaults()
@@ -36,17 +39,23 @@ class FamilySetupCoordinator(
                     connection.providerId == "emby" && repository.session(connection.id) != null
                 }
                 val needsSignIn = if (existing == null) true else {
+                    resumed = true
+                    mutableState.value = FamilySetupState(loading = false)
                     try {
                         repository.call(existing.id) { provider, session -> provider.libraries(session) }
                         false
-                    } catch (error: ServerException) {
-                        if (error.failure != ServerFailure.AUTH_REQUIRED ||
-                            existing.userName != credentials.username ||
-                            existing.address.trimEnd('/') != credentials.address.trimEnd('/')) throw error
-                        true
+                    } catch (error: CancellationException) {
+                        throw error
+                    } catch (error: Exception) {
+                        // An offline or slow server keeps the saved session; Home reports its own errors.
+                        if (error !is ServerException || error.failure != ServerFailure.AUTH_REQUIRED) false
+                        else if (existing.userName == credentials.username &&
+                            existing.address.trimEnd('/') == credentials.address.trimEnd('/')) true
+                        else throw error
                     }
                 }
                 if (needsSignIn) {
+                    renewing = resumed
                     if (credentials.address.isBlank() || credentials.username.isBlank() || credentials.password.isBlank()) {
                         throw ServerException(ServerFailure.INCOMPLETE)
                     }
@@ -57,7 +66,9 @@ class FamilySetupCoordinator(
             }
             mutableState.value = FamilySetupState(loading = false)
         } catch (_: TimeoutCancellationException) {
-            mutableState.value = FamilySetupState(loading = false, failure = ServerFailure.UNREACHABLE)
+            if (!resumed || renewing) {
+                mutableState.value = FamilySetupState(loading = false, failure = ServerFailure.UNREACHABLE)
+            }
         } catch (error: CancellationException) {
             throw error
         } catch (error: Exception) {
