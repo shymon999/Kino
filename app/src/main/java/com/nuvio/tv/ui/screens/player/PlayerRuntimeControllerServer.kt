@@ -258,6 +258,7 @@ internal fun PlayerRuntimeController.adaptServerBitrate(player: androidx.media3.
         bandwidthSampleAt = serverBandwidthSampleAt,
         ceilingBitrate = configuredLimit ?: maxOf(bitrate, session.sourceBitrate ?: bitrate, 40_000_000L)
     ) ?: return
+    if (next > bitrate && !canRaiseServerBitrate(session.forceVideoTranscoding, bitrate, session.sourceBitrate)) return
     serverQualityJob = scope.launch {
         val audioLanguage = player.audioFormat?.language
         val audioIndex = audioLanguage?.let { language -> session.audioTracks.firstOrNull {

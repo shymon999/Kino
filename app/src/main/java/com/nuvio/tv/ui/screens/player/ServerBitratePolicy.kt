@@ -1,5 +1,12 @@
 package com.nuvio.tv.ui.screens.player
 
+/**
+ * Only a forced transcode below its source has a higher rung. Raising the original stream
+ * would replace direct play or video copy with a full transcode at a lower bitrate.
+ */
+internal fun canRaiseServerBitrate(forcedTranscode: Boolean, current: Long, sourceBitrate: Long?): Boolean =
+    forcedTranscode && (sourceBitrate == null || current < sourceBitrate)
+
 /** A slow, hysteretic controller for single-quality server streams. All times are monotonic. */
 internal class ServerBitratePolicy(private val responsive: Boolean = false) {
     private var ceiling = 40_000_000L

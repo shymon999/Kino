@@ -47,4 +47,13 @@ class ServerBitratePolicyTest {
         policy.failed(100_000)
         for (t in 101_000L..159_000L step 1_000) assertNull(policy.tick(t))
     }
+
+    @Test fun onlyForcedTranscodeBelowItsSourceCanBeRaised() {
+        // Unlimited direct play of an 8 Mb/s file must not become a 10 Mb/s transcode.
+        assertFalse(canRaiseServerBitrate(forcedTranscode = false, current = 8_000_000, sourceBitrate = 8_000_000))
+        assertFalse(canRaiseServerBitrate(forcedTranscode = false, current = 8_000_000, sourceBitrate = null))
+        assertFalse(canRaiseServerBitrate(forcedTranscode = true, current = 30_000_000, sourceBitrate = 30_000_000))
+        assertTrue(canRaiseServerBitrate(forcedTranscode = true, current = 20_000_000, sourceBitrate = 30_000_000))
+        assertTrue(canRaiseServerBitrate(forcedTranscode = true, current = 20_000_000, sourceBitrate = null))
+    }
 }
