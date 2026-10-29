@@ -26,6 +26,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.async
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.ensureActive
@@ -40,7 +41,7 @@ internal class EmbyProvider(
     http: OkHttpClient,
     identity: ServerClientIdentity,
     private val disk: BoundedMetadataDiskCache? = null,
-    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
     now: () -> Long = System::currentTimeMillis,
     private val familyCuration: Boolean = true
 ) : MediaBrowserProvider(authorizationHeader = "X-Emby-Authorization", apiPath = "/emby", http = http, identity = identity) {
@@ -53,7 +54,7 @@ internal class EmbyProvider(
     private data class LibrarySnapshot(val loadedAt: Long, val titles: List<ServerTitle>)
     private val indexLock = Mutex()
     private val libraryIndex = mutableMapOf<String, LibrarySnapshot>()
-    private val indexLoads = ConcurrentHashMap<String, Mutex>()
+    private val indexLoads = ConcurrentHashMap<String, Deferred<List<ServerTitle>>>()
     private val revoked = ConcurrentHashMap.newKeySet<String>()
     private val localIndex = disk?.let { cache -> FamilyLibraryIndex(cache, scope, browsingSeed,
         { session, library, offset -> super.libraryPage(session, library, offset, 200, null) }, now) }
@@ -61,39 +62,47 @@ internal class EmbyProvider(
     private suspend fun indexedTitles(session: ServerSession, library: ServerLibrary): List<ServerTitle> = withContext(Dispatchers.Default) {
         localIndex?.let { return@withContext it.titles(session, library) }
         val key = "${session.connection.credentialRef}:${library.id}"
-        indexLoads.getOrPut(key) { Mutex() }.withLock {
-            val now = System.nanoTime() / 1_000_000
-            val cached = indexLock.withLock { libraryIndex[key] }
-            cached?.takeIf { now - it.loadedAt < 15 * 60_000L }?.let { return@withLock it.titles }
-            val titles = withTimeoutOrNull(60_000L) {
-                val result = mutableListOf<ServerTitle>()
-                val seen = mutableSetOf<String>()
-                var offset = 0
-                while (true) {
-                    val page = super.libraryPage(session, library, offset, 200, null)
-                    val added = page.items.filter { seen.add(it.preview.id) }
-                    if (page.items.isNotEmpty() && added.isEmpty()) throw ServerException(ServerFailure.FAILED)
-                    result += added
-                    offset += page.items.size
-                    if (page.items.isEmpty() || (page.totalCount?.let { offset >= it } ?: (page.items.size < 200))) break
-                    if (offset > 100_000) throw ServerException(ServerFailure.FAILED)
-                }
-                result.distinctBy { it.preview.id }
-            } ?: throw ServerException(ServerFailure.UNREACHABLE)
-            // Bound memory across profile/account changes. Never serve one account's cache to another.
-            indexLock.withLock {
-                if (libraryIndex.size >= 24 || libraryIndex.values.sumOf { it.titles.size } + titles.size > 20_000) libraryIndex.clear()
-                libraryIndex[key] = LibrarySnapshot(System.nanoTime() / 1_000_000, titles)
+        val now = System.nanoTime() / 1_000_000
+        indexLock.withLock { libraryIndex[key] }?.takeIf { now - it.loadedAt < 15 * 60_000L }?.let { return@withContext it.titles }
+        // A search timeout must not discard a large library half-way. The next search reuses this load.
+        val load = indexLoads.compute(key) { _, running ->
+            running?.takeIf { it.isActive } ?: scope.async { loadIndex(session, library, key) }
+        }!!
+        load.invokeOnCompletion { indexLoads.remove(key, load) }
+        load.await()
+    }
+
+    private suspend fun loadIndex(session: ServerSession, library: ServerLibrary, key: String): List<ServerTitle> {
+        val titles = withTimeoutOrNull(60_000L) {
+            val result = mutableListOf<ServerTitle>()
+            val seen = mutableSetOf<String>()
+            var offset = 0
+            while (true) {
+                val page = super.libraryPage(session, library, offset, 200, null)
+                val added = page.items.filter { seen.add(it.preview.id) }
+                if (page.items.isNotEmpty() && added.isEmpty()) throw ServerException(ServerFailure.FAILED)
+                result += added
+                offset += page.items.size
+                if (page.items.isEmpty() || (page.totalCount?.let { offset >= it } ?: (page.items.size < 200))) break
+                if (offset > 100_000) throw ServerException(ServerFailure.FAILED)
             }
-            titles
+            result.distinctBy { it.preview.id }
+        } ?: throw ServerException(ServerFailure.UNREACHABLE)
+        coroutineContext.ensureActive()
+        // Bound memory across profile/account changes. Never serve one account's cache to another.
+        indexLock.withLock {
+            if (libraryIndex.size >= 24 || libraryIndex.values.sumOf { it.titles.size } + titles.size > 20_000) libraryIndex.clear()
+            libraryIndex[key] = LibrarySnapshot(System.nanoTime() / 1_000_000, titles)
         }
+        return titles
     }
 
     override suspend fun signOut(session: ServerSession) {
         revoked.add(FamilyLibraryIndex.cacheScope(session))
         localIndex?.clear(session)
         indexLock.withLock { libraryIndex.keys.removeAll { it.startsWith("${session.connection.credentialRef}:") } }
-        indexLoads.keys.removeAll { it.startsWith("${session.connection.credentialRef}:") }
+        indexLoads.keys.filter { it.startsWith("${session.connection.credentialRef}:") }
+            .forEach { indexLoads.remove(it)?.cancel() }
         super.signOut(session)
     }
 
