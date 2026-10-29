@@ -272,7 +272,8 @@ fun SearchScreen(
             }
 
             override fun onResults(results: Bundle?) {
-                if (com.nuvio.tv.BuildConfig.FAMILY_BUILD && !isVoiceListening) return
+                // A result that arrives after typing or cancelling must not replace the query.
+                if (!isVoiceListening) return
                 isVoiceListening = false
                 voiceRmsLevel = 0f
                 val recognized = results
@@ -416,7 +417,7 @@ fun SearchScreen(
         }
     }
     val handleQueryChanged: (String) -> Unit = { nextQuery ->
-        if (com.nuvio.tv.BuildConfig.FAMILY_BUILD && nextQuery != uiState.query && isVoiceListening) {
+        if (nextQuery != uiState.query && isVoiceListening) {
             isVoiceListening = false
             voiceRmsLevel = 0f
             speechRecognizer?.cancel()
