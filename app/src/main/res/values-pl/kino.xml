@@ -36,4 +36,5 @@
     <string name="kino_tmdb_key_invalid">Wpisz klucz API v3: 32 znaki. To nie jest token dostępu.</string>
     <string name="kino_tmdb_save_failed">Nie udało się zapisać. Spróbuj ponownie.</string>
     <string name="kino_tmdb_remove">Usuń klucz</string>
+    <string name="kino_tmdb_key_rejected">TMDB odrzucił klucz</string>
 </resources>

@@ -178,4 +178,33 @@ class ServerPosterServiceTest {
         runCurrent()
         assertEquals("https://image.tmdb.org/t/p/w500/serial-pl.jpg", service.cached(listOf(series)).single().poster)
     }
+
+    @Test fun rejectedKeyStopsRepeatedLookupsUntilTheKeyChanges() = runTest {
+        coEvery { api.findByExternalId(any(), "bad-key", any()) } returns Response.error(
+            401, okhttp3.ResponseBody.create(null, "Unauthorized"))
+        val service = ServerPosterService(api, backgroundScope, "bad-key")
+        service.cachedAndRequest(listOf(item()))
+        runCurrent()
+        assertEquals("bad-key", service.rejectedApiKey.value)
+        service.cachedAndRequest(listOf(item(), item().copy(imdbId = "tt7654321")))
+        runCurrent()
+        coVerify(exactly = 1) { api.findByExternalId(any(), any(), any()) }
+    }
+
+    @Test fun manyTitlesShareBoundedDiskEntries() = runTest {
+        coEvery { api.findByExternalId(any(), "test-key", "imdb_id") } returns Response.success(
+            TmdbFindResponse(movieResults = listOf(TmdbFindResult(123))))
+        coEvery { api.getMovieImages(123, "test-key", "pl") } returns Response.success(
+            TmdbImagesResponse(posters = listOf(TmdbImage("/pl.jpg", "pl"))))
+        val directory = folder.newFolder()
+        val service = ServerPosterService(api, backgroundScope, "test-key", BoundedMetadataDiskCache(directory))
+        service.cachedAndRequest((1..200).map { item().copy(imdbId = "tt$it") })
+        runCurrent()
+        val files = directory.listFiles().orEmpty().count { it.isFile }
+        org.junit.Assert.assertTrue("Posters used $files cache entries", files <= 32)
+        val restarted = ServerPosterService(api, backgroundScope, "test-key", BoundedMetadataDiskCache(directory))
+        restarted.cachedAndRequest((1..200).map { item().copy(imdbId = "tt$it") })
+        runCurrent()
+        coVerify(exactly = 200) { api.findByExternalId(any(), any(), any()) }
+    }
 }

@@ -36,4 +36,5 @@
     <string name="kino_tmdb_key_invalid">Enter the 32-character API v3 key, not an access token.</string>
     <string name="kino_tmdb_save_failed">Could not save. Try again.</string>
     <string name="kino_tmdb_remove">Remove key</string>
+    <string name="kino_tmdb_key_rejected">TMDB rejected the key</string>
 </resources>

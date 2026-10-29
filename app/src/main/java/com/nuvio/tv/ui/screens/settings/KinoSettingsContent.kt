@@ -25,9 +25,11 @@ import com.nuvio.tv.data.local.LayoutPreferenceDataStore
 import com.nuvio.tv.data.local.PlayerSettingsDataStore
 import com.nuvio.tv.data.local.PosterPreferencesDataStore
 import com.nuvio.tv.data.mediaserver.ServerCatalog
+import com.nuvio.tv.data.mediaserver.ServerPosterService
 import com.nuvio.tv.domain.model.HomeImdbRatingsVisibility
 import dagger.hilt.android.lifecycle.HiltViewModel
 import javax.inject.Inject
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
@@ -37,8 +39,12 @@ class KinoSettingsViewModel @Inject constructor(
     val catalog: ServerCatalog,
     private val player: PlayerSettingsDataStore,
     private val layout: LayoutPreferenceDataStore,
-    val posters: PosterPreferencesDataStore
+    val posters: PosterPreferencesDataStore,
+    posterService: ServerPosterService
 ) : ViewModel() {
+    val posterKeyRejected = combine(posterService.rejectedApiKey, posters.state) { rejected, _ ->
+        rejected != null && rejected == posters.activeApiKey()
+    }
     val autoQuality = player.playerSettings.map { it.serverAutoBitrateEnabled }
     val ratings = layout.homeImdbRatingsVisibility.map { it.showRatings }
     fun setAutoQuality(enabled: Boolean) { viewModelScope.launch { player.setServerAutoBitrateEnabled(enabled) } }
@@ -57,6 +63,7 @@ internal fun KinoSettingsContent(
     val autoQuality by viewModel.autoQuality.collectAsStateWithLifecycle(initialValue = false)
     val ratings by viewModel.ratings.collectAsStateWithLifecycle(initialValue = true)
     val posters by viewModel.posters.state.collectAsStateWithLifecycle()
+    val posterKeyRejected by viewModel.posterKeyRejected.collectAsStateWithLifecycle(initialValue = false)
     var picker by remember { mutableStateOf<String?>(null) }
     var showServers by remember { mutableStateOf(false) }
     var connectionId by remember { mutableStateOf<String?>(null) }
@@ -91,7 +98,11 @@ internal fun KinoSettingsContent(
             SettingsToggleRow(title = stringResource(R.string.kino_poster_ratings), subtitle = null,
                 checked = ratings, onToggle = { viewModel.setRatings(!ratings) })
             SettingsActionRow(title = stringResource(R.string.kino_posters), subtitle = null,
-                value = stringResource(if (posters.polishPosters && posters.hasApiKey) R.string.kino_posters_tmdb else R.string.kino_posters_emby),
+                value = stringResource(when {
+                    posterKeyRejected -> R.string.kino_tmdb_key_rejected
+                    posters.polishPosters && posters.hasApiKey -> R.string.kino_posters_tmdb
+                    else -> R.string.kino_posters_emby
+                }),
                 onClick = { picker = "posters" })
             SettingsActionRow(title = stringResource(R.string.settings_media_servers),
                 subtitle = stringResource(R.string.kino_servers_description), onClick = { showServers = true })
