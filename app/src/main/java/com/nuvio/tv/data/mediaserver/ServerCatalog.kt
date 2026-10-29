@@ -19,6 +19,9 @@ import javax.inject.Inject
 import javax.inject.Singleton
 import java.net.URLEncoder
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -338,12 +341,16 @@ class ServerCatalog @Inject constructor(
         } ?: throw ServerException(ServerFailure.NOT_FOUND)
         // Each step advances the same offset in every source library. Never use
         // the combined item count as a library offset or later titles get skipped.
-        val pages = sources.map { source ->
-            pageOf(connection, skip) {
-                repository.call(connection.id) { provider, session ->
-                    provider.libraryPage(session, source.library, skip, PAGE_SIZE, source.genres.joinToString(",") { it.id })
+        val pages = coroutineScope {
+            sources.map { source ->
+                async {
+                    pageOf(connection, skip) {
+                        repository.call(connection.id) { provider, session ->
+                            provider.libraryPage(session, source.library, skip, PAGE_SIZE, source.genres.joinToString(",") { it.id })
+                        }
+                    }
                 }
-            }
+            }.awaitAll()
         }
         return Page(
             pages.flatMap { it.items }.distinctBy { "${it.apiType}:${it.id}" },
