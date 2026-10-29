@@ -98,6 +98,10 @@ fun truthy(value: String?): Boolean {
         value.equals("yes", ignoreCase = true)
 }
 
+// Kino releases are numbered independently of upstream's defaultConfig.
+val kinoVersionCode = 1070
+val kinoVersionName = "1.0.0"
+
 val buildingAppBundle = gradle.startParameter.taskNames.any { it.contains("bundle", ignoreCase = true) }
 val embyTargetAbi = providers.gradleProperty("embyAbi").orNull
 require(embyTargetAbi == null || embyTargetAbi in listOf("armeabi-v7a", "arm64-v8a", "x86", "x86_64")) {
@@ -184,8 +188,8 @@ android {
     productFlavors {
         create("full") {
             dimension = "distribution"
-            versionCode = 1070
-            versionName = "1.0.0"
+            versionCode = kinoVersionCode
+            versionName = kinoVersionName
             buildConfigField("boolean", "FEATURE_PLUGINS_ENABLED", "true")
             buildConfigField("boolean", "FEATURE_IN_APP_UPDATES_ENABLED", "false")
             buildConfigField("boolean", "FEATURE_IN_APP_TRAILERS_ENABLED", "true")
@@ -206,6 +210,8 @@ android {
         create("family") {
             dimension = "distribution"
             applicationId = "com.nuvio.tv.emby.family"
+            versionCode = kinoVersionCode
+            versionName = kinoVersionName
             versionNameSuffix = "-rodzina"
             buildConfigField("boolean", "FAMILY_BUILD", "true")
             buildConfigField("String", "FAMILY_EMBY_URL", buildConfigString(familyProperties.getProperty("EMBY_SERVER_URL", "")))
