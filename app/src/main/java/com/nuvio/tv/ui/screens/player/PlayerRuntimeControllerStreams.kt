@@ -1568,6 +1568,7 @@ internal fun PlayerRuntimeController.switchToEpisodeStream(
     mpvView?.markMediaRequested(playbackUrl)
     endDetectionArmed = false
     mpvEofSeenClear = false
+    exoEndOverrunHandled = false
     currentTraktEpisodeMapping = null
     currentTraktEpisodeMappingKey = null
     lastSavedPosition = 0L
