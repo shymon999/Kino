@@ -565,6 +565,31 @@ internal fun PlayerRuntimeController.initializePlayer(
                     budgetBytes = budgetBytes,
                     allocator = allocator
                 ).also { currentBitrateAwareLoadControl = it }
+            } else if (serverPlayback.isServerSource(url)) {
+                // Kino: Emby/Jellyfin streams get a deeper stock buffer so short Wi-Fi drops or a
+                // momentarily slow transcode do not stall, and a stall waits for 8 s of media
+                // instead of 2 s so it does not stutter in short bursts. The byte target stays
+                // inside the device heap budget (about 170 MB on 2 GB TV boxes).
+                effectiveBackBufferDurationMs = 1_500
+                currentBitrateAwareLoadControl = null
+                val serverTargetMb = KINO_SERVER_TARGET_BUFFER_MB.coerceAtMost(MemoryBudget.budgetMb)
+                Log.i(
+                    PlayerRuntimeController.TAG,
+                    "BUFFER_GATE: engine=exo-stock-server master=off; DefaultLoadControl " +
+                            "min=${KINO_SERVER_MIN_BUFFER_MS}ms max=${KINO_SERVER_MAX_BUFFER_MS}ms " +
+                            "afterRebuffer=${KINO_SERVER_BUFFER_AFTER_REBUFFER_MS}ms targetMb=$serverTargetMb " +
+                            "host=${url.safeHost()}"
+                )
+                DefaultLoadControl.Builder()
+                    .setBufferDurationsMs(
+                        KINO_SERVER_MIN_BUFFER_MS,
+                        KINO_SERVER_MAX_BUFFER_MS,
+                        DefaultLoadControl.DEFAULT_BUFFER_FOR_PLAYBACK_MS,
+                        KINO_SERVER_BUFFER_AFTER_REBUFFER_MS
+                    )
+                    .setTargetBufferBytes(serverTargetMb * 1024 * 1024)
+                    .setBackBuffer(1_500, /* retainBackBufferFromKeyframe = */ true)
+                    .build()
             } else {
                 // Stock LoadControl: DefaultLoadControl configured with 1.5s back buffer so 1s rewind doesn't clear buffer.
                 effectiveBackBufferDurationMs = 1_500
@@ -2863,3 +2888,9 @@ private fun PlayerView.videoBoundsFraction(aspectRatio: Float): RectF? {
         top + frameHeight / viewHeight,
     )
 }
+
+// Kino: buffer for Emby/Jellyfin streams on the stock load control (see BUFFER_GATE above).
+private const val KINO_SERVER_MIN_BUFFER_MS = 60_000
+private const val KINO_SERVER_MAX_BUFFER_MS = 75_000
+private const val KINO_SERVER_BUFFER_AFTER_REBUFFER_MS = 8_000
+private const val KINO_SERVER_TARGET_BUFFER_MB = 150

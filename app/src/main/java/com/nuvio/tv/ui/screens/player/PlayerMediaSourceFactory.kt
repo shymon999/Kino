@@ -125,6 +125,10 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
     // them cannot say why a run used the size it did.
     var bufferEngineEnabled: Boolean = false
     var bufferBudgetManaged: Boolean = PlayerSettings.DEFAULT_BUFFER_BUDGET_MANAGED
+    // Emby/Jellyfin transcodes cut every segment on a keyframe with in-band SPS/PPS. Probing their
+    // segment heads would make the server start a transcode at segment 0 before the real resume
+    // position, so the HLS parameter-set check is skipped for media-server sources.
+    var isMediaServerUrl: (String) -> Boolean = { false }
     var vodCacheEnabled: Boolean = PlayerSettings.DEFAULT_VOD_CACHE_ENABLED
     var vodCacheSizeMode: VodCacheSizeMode = PlayerSettings.DEFAULT_VOD_CACHE_SIZE_MODE
     var vodCacheSizeMb: Int = PlayerSettings.DEFAULT_VOD_CACHE_SIZE_MB
@@ -189,7 +193,7 @@ internal class PlayerMediaSourceFactory(private val context: Context) {
                     useLongReadTimeout = isLoopbackUrl(url),
                 ),
             )
-            if (isHls) HlsParameterSetInitDataSource.Factory(adaptiveFactory) else adaptiveFactory
+            if (isHls && !isMediaServerUrl(url)) HlsParameterSetInitDataSource.Factory(adaptiveFactory) else adaptiveFactory
         } else {
             PlayerPlaybackNetworking.createDataSourceFactory(context, sanitizedHeaders)
         }

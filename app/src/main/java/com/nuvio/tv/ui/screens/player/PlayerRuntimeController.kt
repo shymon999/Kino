@@ -194,6 +194,7 @@ class PlayerRuntimeController(
     internal val cloudSessionToken: String? = navigationArgs.cloudSessionToken
     internal val mediaSourceFactory = PlayerMediaSourceFactory(context.applicationContext).apply {
         onStreamRedirected = { requestedUrl, resolvedUrl -> handleStreamRedirect(requestedUrl, resolvedUrl) }
+        isMediaServerUrl = serverPlayback::isServerSource
     }
 
     // The file rate is the only one every container reports, so the playhead is placed in the
